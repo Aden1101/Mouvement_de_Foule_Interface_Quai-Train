@@ -1,7 +1,5 @@
 import dataclasses
 import pygame
-import Individual
-import Simulation
 from sys import exit
 
 
