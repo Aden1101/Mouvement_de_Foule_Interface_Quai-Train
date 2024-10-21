@@ -1,4 +1,6 @@
 import dataclasses
+import Individual
+import Simulation
 import pygame
 from sys import exit
 
