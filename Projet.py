@@ -1,38 +1,20 @@
 import dataclasses
-import Individual
-import Simulation
 import pygame
-from sys import exit
-
-
-@dataclasses.dataclass
-class Player:
-    def __init__(
-        self,
-        name,
-    ):
-        self._name = name
-
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, new_name):
-        self._name = new_name
-
-
-pygame.init()
-screen = pygame.display.set_mode((800, 600))
-pygame.display.set_caption("Mouvements de foules")
-clock = pygame.time.Clock()
-font = pygame.font.Font(None, 50)
-
-
-background = pygame.image.load(
-    "C:/Users/elmi_/Documents/ENPC/2A_IMI/TdLOG/Projet/Assets/Pontai.png"
+from Utils import (
+    SCREEN_WIDTH,
+    SCREEN_HEIGHT,
+    afficher_menu,
+    medium_font,
+    clock,
+    screen,
+    small_font,
+    large_font,
 )
 
+# Chargement des assets
+background = pygame.image.load(
+    "C:/Users/elmi_/Documents/ENPC/2A_IMI/TdLOG/Projet_Mouvement_de_foule/Mouvement_de_Foule_Interface_Quai-Train/Assets/Pontai.png"
+)
 background.fill("WHITE")
 
 ground = pygame.Surface((800, 200))
@@ -41,19 +23,46 @@ Player_sprite = pygame.Surface((5, 5))
 Player_sprite.fill("BLACK")
 player_initial_pos = 500
 
-game_name = font.render("Mouvements de foule", False, "BLACK")
+menu_name = medium_font.render("Mouvements de foule", False, "BLACK")
 
-while True:
-    # Quit the game
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
-    screen.blit(background, (0, 0))
-    screen.blit(ground, (0, 400))
-    screen.blit(game_name, (230, 200))
-    screen.blit(Player_sprite, (player_initial_pos, 300))
-    player_initial_pos -= 5
 
-    pygame.display.update()
-    clock.tick(30)
+# Fonction principale du jeu (avec l'animation et les éléments principaux)
+def main():
+    global player_initial_pos
+    running = True
+    while running:
+        # Quitter le jeu
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # Affichage des éléments de jeu
+        screen.blit(background, (0, 0))
+        screen.blit(ground, (0, 400))
+        game_name_rect = menu_name.get_rect(
+            center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20)
+        )
+        screen.blit(menu_name, game_name_rect)
+        screen.blit(Player_sprite, (player_initial_pos, 300))
+
+        # Animation du joueur
+        player_initial_pos -= 5
+        if player_initial_pos < 0:  # Réinitialise la position
+            player_initial_pos = SCREEN_WIDTH
+
+        pygame.display.update()
+        clock.tick(30)
+
+    pygame.quit()
+
+def scenario_simulation():
+
+    while true:
+        
+
+
+# Lancer le menu d'accueil puis le jeu
+if __name__ == "__main__":
+    choix = afficher_menu()
+    if choix == "play":
+        main()

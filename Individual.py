@@ -57,6 +57,7 @@ class Individual:
     def shock(self):
 
     def inCollision(self):
+        return
 
 
 class Indivudalpatient(indivudal)
