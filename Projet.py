@@ -55,14 +55,16 @@ def main():
 
     pygame.quit()
 
+
 def scenario_simulation():
 
-    while true:
-        
+    return 4
 
 
 # Lancer le menu d'accueil puis le jeu
 if __name__ == "__main__":
     choix = afficher_menu()
-    if choix == "play":
+    if choix == "simulation_scenario":
+        main()
+    if choix == "simulation_perso":
         main()
