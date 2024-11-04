@@ -1,6 +1,6 @@
 import dataclasses
-import pygame
 from Utils import (
+    pygame,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
     afficher_menu,
@@ -9,6 +9,7 @@ from Utils import (
     screen,
     small_font,
     large_font,
+    afficher_scenario_simulation,
 )
 
 # Chargement des assets
@@ -26,45 +27,23 @@ player_initial_pos = 500
 menu_name = medium_font.render("Mouvements de foule", False, "BLACK")
 
 
-# Fonction principale du jeu (avec l'animation et les éléments principaux)
-def main():
-    global player_initial_pos
-    running = True
-    while running:
-        # Quitter le jeu
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-        # Affichage des éléments de jeu
-        screen.blit(background, (0, 0))
-        screen.blit(ground, (0, 400))
-        game_name_rect = menu_name.get_rect(
-            center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20)
-        )
-        screen.blit(menu_name, game_name_rect)
-        screen.blit(Player_sprite, (player_initial_pos, 300))
-
-        # Animation du joueur
-        player_initial_pos -= 5
-        if player_initial_pos < 0:  # Réinitialise la position
-            player_initial_pos = SCREEN_WIDTH
-
-        pygame.display.update()
-        clock.tick(30)
-
-    pygame.quit()
-
-
 def scenario_simulation():
 
-    return 4
+    return None
+
+
+def scenario_perso():
+    return None
 
 
 # Lancer le menu d'accueil puis le jeu
 if __name__ == "__main__":
-    choix = afficher_menu()
-    if choix == "simulation_scenario":
-        main()
-    if choix == "simulation_perso":
-        main()
+    while True:
+        choix = afficher_menu()
+        if choix == "simulation_scenario":
+            choix = afficher_scenario_simulation()
+            if choix == "main":
+                continue
+
+        if choix == "simulation_perso":
+            scenario_perso()

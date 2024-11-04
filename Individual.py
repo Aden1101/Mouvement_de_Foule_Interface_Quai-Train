@@ -12,12 +12,14 @@ class Individual:
         coord,
         speed,
         id,
+        politeness,
     ):
         self._radius = radius
         self._color = color
         self._coord = coord
         self._speed = speed
         self._id = id
+        self._politeness = politeness
 
     @property
     def radius(self):
@@ -36,28 +38,56 @@ class Individual:
         self._name = new_name
     
     @property
-    def name(self):
-        return self._name
+    def color(self):
+        return self._color
 
-    @name.setter
-    def name(self, new_name):
-        self._name = new_name
+    @color.setter
+    def color(self, new_color):
+        self._color = new_color
     
     @property
-    def name(self):
-        return self._name
+    def coord(self):
+        return self._coord
 
-    @name.setter
-    def name(self, new_name):
-        self._name = new_name
+    @coord.setter
+    def coord(self, new_coord):
+        self._coord = new_coord
 
+    @property
+    def speed(self):
+        return self._speed
 
+    @speed.setter
+    def speed(self, new_speed):
+        self._speed = new_speed
 
+    @property
+    def id(self):
+        return self._id
+
+    @id.setter
+    def id(self, new_id):
+        self._id = new_id
+
+    @property
+    def politeness(self):
+        return self._politeness
+
+    @politeness.setter
+    def coord(self, new_politeness):
+        self._politeness = new_politeness
     
-    def shock(self):
-
-    def inCollision(self):
+    def inCollision(self,list_individuals):
+        for individual in list_individuals:
+            if individual.id != self.id:
+                if(individual.coord + individual.radius == self.coord):
+                    return True
+        return False       
+     
+    def move(self):
+        "calcul gradient descente de gradient sur la fct d'utilité"
         return
 
 
-class Indivudalpatient(indivudal)
+class Indivudalpatient(Individual):
+    "peut etre ajouter des sous classes prédéfinis avec les entrants et sortant"

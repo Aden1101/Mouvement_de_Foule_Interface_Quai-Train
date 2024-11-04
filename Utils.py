@@ -1,5 +1,6 @@
 import pygame
 from sys import exit
+import os
 
 # Constantes
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -20,23 +21,51 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("Mouvements de foules")
 clock = pygame.time.Clock()
 
+# Chemin relatif de l'image d'icône
+icon_path = os.path.join(
+    "Mouvement_de_Foule_Interface_Quai-Train", "Assets", "Pontai.png"
+)
+
+# Chargement de l'image de l'icône
+icon_image = pygame.image.load(icon_path)
+
+# Définir l'image comme icône de la fenêtre
+pygame.display.set_icon(icon_image)
+
 # Fonts
 large_font = pygame.font.Font(None, 75)
-medium_font = pygame.font.Font(None, 40)
+medium_font = pygame.font.Font(None, 35)
 small_font = pygame.font.Font(None, 25)
+vsmall_font = pygame.font.Font(None, 15)
 
 
 # Classe pour gérer les zones de texte
 class InputBox:
-    def __init__(self, x, y, w, h, font, label_text="Paramètre", enabled=True):
+    def __init__(
+        self,
+        x,
+        y,
+        w=55,
+        h=25,
+        font=small_font,
+        label_text="Paramètre",
+        enabled=True,
+        min_value=0.0,
+        max_value=1.0,
+    ):
+        self.width = w
+        self.height = h
         self.rect = pygame.Rect(x, y, w, h)
         self.color = DARK_GRAY if enabled else DISABLED_GRAY
         self.text = ""
-        self.font = font
+        self.font = small_font
         self.label_text = label_text
         self.enabled = enabled
         self.active = False
         self.error_message = ""
+        self.min_value = min_value  # Valeur minimale acceptable
+        self.max_value = max_value  # Valeur maximale acceptable
+        self.max_length = 4  # Longueur maximale de saisie
 
     def handle_event(self, event):
         if not self.enabled:
@@ -55,29 +84,35 @@ class InputBox:
             elif event.key == pygame.K_RETURN:
                 self.validate_text()
             else:
-                if event.unicode.isdigit() or event.unicode == ".":
+                # Ajout de caractères uniquement si la longueur maximale n'est pas atteinte
+                if len(self.text) < self.max_length and (
+                    event.unicode.isdigit() or event.unicode == "."
+                ):
                     self.text += event.unicode
 
     def validate_text(self):
+        """Vérifie que le texte entré est un nombre flottant et qu'il est dans l'intervalle [min_value, max_value]."""
         try:
             value = float(self.text)
-            if 0 <= value <= 1:
+            if self.min_value <= value <= self.max_value:
                 self.error_message = ""
                 print(f"Valeur acceptée pour {self.label_text}: {value}")
             else:
-                self.error_message = "Veuillez entrer un nombre entre 0 et 1."
+                self.error_message = (
+                    f"Entrez un nombre entre {self.min_value} et {self.max_value}."
+                )
         except ValueError:
             self.error_message = "Entrée invalide. Entrez un nombre."
 
     def draw(self, screen):
         label_surface = self.font.render(self.label_text, True, BLACK)
-        screen.blit(label_surface, (self.rect.x, self.rect.y - 25))
+        screen.blit(label_surface, (self.rect.x, self.rect.y + self.height * 1.5))
         pygame.draw.rect(screen, self.color, self.rect)
         pygame.draw.rect(screen, BLACK, self.rect, 2)
         text_surface = self.font.render(
             self.text, True, WHITE if self.enabled else DARK_GRAY
         )
-        screen.blit(text_surface, (self.rect.x + 10, self.rect.y + 10))
+        screen.blit(text_surface, (self.rect.x + 10, self.rect.y + self.height / 4))
 
         if self.error_message:
             error_surface = small_font.render(self.error_message, True, ERROR_COLOR)
@@ -90,13 +125,15 @@ class InputBox:
 
 # Classe pour gérer un Timer
 class Timer:
-    def __init__(self, x, y):
+    def __init__(self, x, y, color, font=small_font):
         self.x = x
         self.y = y
         self.start_time = 0
         self.paused_time = 0
         self.running = False
         self.paused = False
+        self.color = color
+        self.font = font
 
     def start(self):
         self.start_time = pygame.time.get_ticks()
@@ -107,9 +144,7 @@ class Timer:
         if self.running and not self.paused:
             self.paused_time = pygame.time.get_ticks() - self.start_time
             self.paused = True
-
-    def resume(self):
-        if self.running and self.paused:
+        elif self.running and self.paused:
             self.start_time = pygame.time.get_ticks() - self.paused_time
             self.paused = False
 
@@ -122,20 +157,17 @@ class Timer:
         return 0
 
     def draw(self, screen):
-        time_text = medium_font.render(
-            f"Timer: {self.get_elapsed_time():.2f}s", True, BLACK
+        time_text = self.font.render(
+            f"Timer: {self.get_elapsed_time():.2f}s", True, self.color
         )
         screen.blit(time_text, (self.x, self.y))
 
 
-# Fonction pour créer une seule zone de texte
-def creer_input_box(x, y, width, height, label_text="Paramètre"):
-    return InputBox(x, y, width, height, medium_font, label_text)
-
-
-# Fonction pour créer les boutons avec un texte centré
-def creer_bouton(text, y, x=SCREEN_WIDTH // 2, color=BUTTON_TEXT_COLOR):
-    text_surf = medium_font.render(text, True, color)
+# Fonction pour créer les boutons
+def creer_bouton(
+    text, y, x=SCREEN_WIDTH // 2, color=BUTTON_TEXT_COLOR, font=medium_font
+):
+    text_surf = font.render(text, True, color)
     text_rect = text_surf.get_rect(center=(x, y))
     button_rect = text_rect.inflate(20, 20)
     return text_surf, text_rect, button_rect
@@ -153,7 +185,7 @@ def draw_button_with_border(text_surf, text_rect, button_rect, is_hovered):
 def afficher_menu():
     # Titre du menu
     menu_name = large_font.render("Mouvements de foule", True, BLACK)
-    menu_name_rect = menu_name.get_rect(center=(SCREEN_WIDTH // 2, 50))
+    menu_name_rect = menu_name.get_rect(center=(SCREEN_WIDTH // 2, 100))
 
     # Création des boutons du menu
     texte_simulation1, rect_simulation1, bouton_simulation1 = creer_bouton(
@@ -211,5 +243,109 @@ def afficher_menu():
             bouton_quitter.collidepoint(mouse_pos),
         )
 
+        pygame.display.flip()
+        clock.tick(30)
+
+
+# Affichage du menu d'accueil avec une zone de texte de test
+def afficher_scenario_simulation():
+    # Titre :
+    menu_name = medium_font.render("Scenarios de Simulation", True, BLACK)
+    menu_name_rect = menu_name.get_rect(center=(SCREEN_WIDTH // 2, 20))
+
+    quai_name = medium_font.render("QUAI", True, BLACK)
+    quai_name_rect = menu_name.get_rect(center=(SCREEN_WIDTH // 3, 140))
+    train_name = medium_font.render("TRAIN", True, BLACK)
+    train_name_rect = menu_name.get_rect(center=(SCREEN_WIDTH // 1.7, 140))
+
+    timer_simulation = Timer(10, 50, WHITE, medium_font)
+    timer_simulation.start()
+
+    # Création des boutons du menu
+    texte_timer, rect_timer, bouton_timer = creer_bouton(
+        "Pause", 62, timer_simulation.x + 200, font=small_font
+    )
+
+    param1 = InputBox(
+        255, 50, max_value=1, min_value=0, font=vsmall_font, label_text="Politesse"
+    )
+    param2 = InputBox(
+        param1.width + 260,
+        50,
+        max_value=10,
+        min_value=0,
+        font=vsmall_font,
+        label_text="Densité",
+    )
+
+    texte_accueil, rect_accueil, bouton_accueil = creer_bouton(
+        "Menu Principal", SCREEN_HEIGHT - 50, SCREEN_WIDTH - 200
+    )
+
+    while True:
+        screen.fill(LIGHT_BACKGROUND)
+
+        # Afficher les textes
+        screen.blit(menu_name, menu_name_rect)
+        screen.blit(quai_name, quai_name_rect)
+        screen.blit(train_name, train_name_rect)
+
+        # Gérer les événements pour la zone de texte, boutons et le timer
+        for event in pygame.event.get():
+
+            param1.handle_event(event)
+            param2.handle_event(event)
+
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            # Boutons pour le menu et le timer
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if bouton_accueil.collidepoint(event.pos):
+                    return "main"
+                if bouton_timer.collidepoint(event.pos):
+                    timer_simulation.pause()
+
+        # Obtenir la position de la souris pour l'effet de survol
+        mouse_pos = pygame.mouse.get_pos()
+
+        pygame.draw.rect(screen, LIGHT_GRAY, (0, 40, SCREEN_WIDTH, 45))
+        pygame.draw.line(screen, BLACK, (400, 40), (400, 84), 2)
+        pygame.draw.line(screen, BLACK, (250, 40), (250, 84), 2)
+        pygame.draw.line(
+            screen,
+            BLACK,
+            (SCREEN_WIDTH / 3, SCREEN_HEIGHT / (4.5)),
+            (SCREEN_WIDTH / 3, SCREEN_HEIGHT * 2 / (4.5)),
+            4,
+        )
+
+        pygame.draw.line(
+            screen,
+            BLACK,
+            (SCREEN_WIDTH / 3, SCREEN_HEIGHT * 2 / (4.5) + 100),
+            (SCREEN_WIDTH / 3, SCREEN_HEIGHT * 4 / (4.5)),
+            4,
+        )
+
+        # Dessiner les boutons avec effet de survol et bordure fine
+
+        draw_button_with_border(
+            texte_accueil,
+            rect_accueil,
+            bouton_accueil,
+            bouton_accueil.collidepoint(mouse_pos),
+        )
+
+        draw_button_with_border(
+            texte_timer,
+            rect_timer,
+            bouton_timer,
+            bouton_timer.collidepoint(mouse_pos),
+        )
+
+        param1.draw(screen)
+        param2.draw(screen)
+        timer_simulation.draw(screen)
         pygame.display.flip()
         clock.tick(30)
