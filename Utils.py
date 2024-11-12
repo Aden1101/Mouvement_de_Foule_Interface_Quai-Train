@@ -267,7 +267,7 @@ def afficher_scenario_simulation():
     )
 
     param1 = InputBox(
-        255, 50, max_value=1, min_value=0, font=vsmall_font, label_text="Politesse"
+        255, 50, max_value=1, min_value=0, font=vsmall_font, label_text="P1"
     )
     param2 = InputBox(
         param1.width + 260,
@@ -275,7 +275,7 @@ def afficher_scenario_simulation():
         max_value=10,
         min_value=0,
         font=vsmall_font,
-        label_text="Densité",
+        label_text="P2",
     )
 
     texte_accueil, rect_accueil, bouton_accueil = creer_bouton(

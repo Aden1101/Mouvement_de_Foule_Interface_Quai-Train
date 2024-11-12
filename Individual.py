@@ -14,7 +14,7 @@ class Individual:
         id,
         politeness,
     ):
-        self._radius = radius
+        self._radius = radius "faire demi-grand axe et l'autre"
         self._color = color
         self._coord = coord
         self._speed = speed
@@ -83,6 +83,8 @@ class Individual:
                 if(individual.coord + individual.radius == self.coord):
                     return True
         return False       
+    
+    "Ajouter forme d'ellipse"
      
     def move(self):
         "calcul gradient descente de gradient sur la fct d'utilité"
