@@ -1,4 +1,5 @@
 import dataclasses
+import os
 from Utils import (
     pygame,
     SCREEN_WIDTH,
@@ -12,10 +13,14 @@ from Utils import (
     afficher_scenario_simulation,
 )
 
-# Chargement des assets
-background = pygame.image.load(
-    "C:/Users/elmi_/Documents/ENPC/2A_IMI/TdLOG/Projet_Mouvement_de_foule/Mouvement_de_Foule_Interface_Quai-Train/Assets/Pontai.png"
-)
+
+# Définir le chemin relatif
+assets_path = os.path.join(os.path.dirname(__file__), "Assets", "test.png")
+
+# Charger l'image
+background = pygame.image.load(assets_path)
+
+# Remplir le fond avec une couleur blanche (si nécessaire)
 background.fill("WHITE")
 
 ground = pygame.Surface((800, 200))
