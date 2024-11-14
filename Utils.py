@@ -1,6 +1,8 @@
 import pygame
 from sys import exit
 import os
+import Simulation as sim
+
 
 # Constantes
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 600
@@ -22,9 +24,7 @@ pygame.display.set_caption("Mouvements de foules")
 clock = pygame.time.Clock()
 
 # Chemin relatif de l'image d'icône
-icon_path = os.path.join(
-    "Mouvement_de_Foule_Interface_Quai-Train", "Assets", "Pontai.png"
-)
+icon_path = os.path.join(os.path.dirname(__file__), "Assets", "test.png")
 
 # Chargement de l'image de l'icône
 icon_image = pygame.image.load(icon_path)
@@ -266,6 +266,10 @@ def afficher_scenario_simulation():
         "Pause", 62, timer_simulation.x + 200, font=small_font
     )
 
+    texte_lancer_simulation, rect_lancer_simulation, bouton_lancer_simulation = (
+        creer_bouton("Lancer Simulation", SCREEN_HEIGHT - 100, SCREEN_WIDTH - 200)
+    )
+
     param1 = InputBox(
         255, 50, max_value=1, min_value=0, font=vsmall_font, label_text="P1"
     )
@@ -305,6 +309,9 @@ def afficher_scenario_simulation():
                     return "main"
                 if bouton_timer.collidepoint(event.pos):
                     timer_simulation.pause()
+                if bouton_lancer_simulation.collidepoint(event.pos):
+                    # Appeler la fonction de simulation ici
+                    sim.start_simulation()
 
         # Obtenir la position de la souris pour l'effet de survol
         mouse_pos = pygame.mouse.get_pos()
@@ -335,6 +342,13 @@ def afficher_scenario_simulation():
             rect_accueil,
             bouton_accueil,
             bouton_accueil.collidepoint(mouse_pos),
+        )
+
+        draw_button_with_border(
+            texte_lancer_simulation,
+            rect_lancer_simulation,
+            bouton_lancer_simulation,
+            bouton_lancer_simulation.collidepoint(mouse_pos),
         )
 
         draw_button_with_border(

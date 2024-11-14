@@ -23,7 +23,7 @@ background = pygame.image.load(assets_path)
 # Remplir le fond avec une couleur blanche (si nécessaire)
 background.fill("WHITE")
 
-ground = pygame.Surface((800, 200))
+ground = pygame.Surface((800, 400))
 ground.fill("BROWN")
 Player_sprite = pygame.Surface((5, 5))
 Player_sprite.fill("BLACK")
