@@ -8,27 +8,50 @@ class MenuView:
         self.screen = screen
         self.manager = pygame_gui.UIManager((SCREEN_WIDTH, SCREEN_HEIGHT))
 
-        # Create native buttons
+        # Titre
+        self.title_font = pygame.font.Font(
+            None, int(SCREEN_HEIGHT * 0.1)
+        )  # Police pour le titre
+        self.title_text = "Mouvements de Foules"
+
+        # Dimensions relatives pour les boutons
+        button_width = SCREEN_WIDTH * 0.3
+        button_height = SCREEN_HEIGHT * 0.07
+        x_center = (SCREEN_WIDTH - button_width) / 2
+
+        # Création des boutons natifs
         self.simulation_scenario_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((300, 200), (200, 50)),
-            text="Scenarios de Simulation ",
+            relative_rect=pygame.Rect(
+                (x_center, SCREEN_HEIGHT * 0.4), (button_width, button_height)
+            ),
+            text="Scénarios de Simulation",
             manager=self.manager,
         )
-
         self.simulation_custom_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((300, 270), (200, 50)),
-            text="Simulation customisée",
+            relative_rect=pygame.Rect(
+                (x_center, SCREEN_HEIGHT * 0.5), (button_width, button_height)
+            ),
+            text="Simulation Personnalisée",
             manager=self.manager,
         )
-
         self.quit_button = pygame_gui.elements.UIButton(
-            relative_rect=pygame.Rect((300, 340), (200, 50)),
+            relative_rect=pygame.Rect(
+                (x_center, SCREEN_HEIGHT * 0.6), (button_width, button_height)
+            ),
             text="Quitter",
             manager=self.manager,
         )
 
     def update(self, time_delta):
         self.screen.fill(LIGHT_BACKGROUND)
+
+        # Dessiner le titre
+        title_surface = self.title_font.render(self.title_text, True, (0, 0, 0))
+        title_rect = title_surface.get_rect(
+            center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.2)
+        )
+        self.screen.blit(title_surface, title_rect)
+
         self.manager.update(time_delta)
         self.manager.draw_ui(self.screen)
         pygame.display.flip()
@@ -43,5 +66,4 @@ class MenuView:
                 elif event.ui_element == self.quit_button:
                     pygame.quit()
                     exit()
-
         return "menu"
