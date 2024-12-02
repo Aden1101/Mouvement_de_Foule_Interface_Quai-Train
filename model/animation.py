@@ -1,122 +1,113 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from model.Simulation import Agent, TrainStationSimulation
+from matplotlib.animation import FuncAnimation
 
 
+# Largeur du trou dans la barrière
 def run_simulation(
-    shared_data, num_agents=100, barrier_width=0.15, g=0.1, max_time=10.0
+    simul,
+    shared_data,
+    steps=100,
+    dt=0.02,
 ):
-    # Paramètres
-    L = 1.0  # Taille du domaine
-    dt = 0.09  # Intervalle de temps entre les frames
-    T = max_time
-    sigma = 0.005
-    repulsion_strength = 0.001
-    collision_distance = 0.05
-    blue_distance = 0
-    all_blue_crossed = False
-    current_time = 0.0  # Timer initialisé à 0
+    """Effectue la simulation et retourne les temps nécessaires pour chaque équipe."""
+    positions = []
+    blue_cross_time = None
+    red_cross_time = None
 
-    # Initialisation des agents
-    np.random.seed(0)
-    agents_pos = np.zeros((num_agents, 2))
-    agents_side = np.zeros(num_agents)
-    agent_sizes = np.random.uniform(10, 25, num_agents)
+    for step in range(steps):
+        simul.update_agents(dt)
+        positions.append([agent.position.copy() for agent in simul.agents])
 
-    for i in range(num_agents):
-        if i < num_agents // 2:
-            agents_pos[i, 0] = np.random.uniform(-0.4, -0.1)
-            agents_pos[i, 1] = np.random.uniform(-L / 4, L / 4)
-            agents_side[i] = 1
-        else:
-            agents_pos[i, 0] = np.random.uniform(0.2, 0.4)
-            agents_pos[i, 1] = np.random.uniform(-L / 4, L / 4)
-            agents_side[i] = -1
+        if blue_cross_time is None and simul.all_blues_crossed:
+            blue_cross_time = step * dt
 
-    # Fonction pour mettre à jour les positions
-    def update_agents(agents_pos, agents_side, allow_blue_movement):
-        new_positions = []
-        for i, (x, y) in enumerate(agents_pos):
-            if agents_side[i] == 1 and not allow_blue_movement:
-                new_positions.append([x, y])
-                continue
+        if red_cross_time is None and simul.are_all_reds_crossed():
+            red_cross_time = step * dt
 
-            target_x = (
-                0 if abs(y) > barrier_width / 2 else (L if agents_side[i] == 1 else -L)
-            )
+        if blue_cross_time is not None and red_cross_time is not None:
+            break
 
-            Vx = g * (target_x - x)
-            Vy = -g * (y / abs(y)) if abs(y) > barrier_width / 2 else 0
+    return blue_cross_time, red_cross_time, positions
 
-            repulsion = np.zeros(2)
-            for other_pos in agents_pos:
-                if np.array_equal([x, y], other_pos):
-                    continue
-                distance = np.linalg.norm([x, y] - other_pos)
-                if distance < collision_distance:
-                    repulsion += repulsion_strength * ([x, y] - other_pos) / distance**2
 
-            dx = dt * (Vx + repulsion[0]) + sigma * np.random.randn() * np.sqrt(dt)
-            dy = dt * (Vy + repulsion[1]) + sigma * np.random.randn() * np.sqrt(dt)
+# Visualisation
+def animate_simulation(simulation, positions, interval=100):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_xlim(2, simulation.area_size[0] - 2)
+    ax.set_ylim(2, simulation.area_size[1] - 2)
 
-            new_x = np.clip(x + dx, -L, L)
-            new_y = np.clip(y + dy, -L, L)
-            new_positions.append([new_x, new_y])
+    # Dessiner les agents initialement
+    circles = [agent.draw(ax) for agent in simulation.agents]
 
-        return np.array(new_positions)
+    def update(frame):
+        for i, circle in enumerate(circles):
+            circle.center = positions[frame][i]
+        return circles
 
-    # Configuration de Matplotlib
-    fig, ax = plt.subplots()
-    ax.set_xlim(-L, L)
-    ax.set_ylim(-L, L)
-
-    scat = ax.scatter(
-        agents_pos[:, 0],
-        agents_pos[:, 1],
-        c=["blue" if side == 1 else "red" for side in agents_side],
-        s=agent_sizes,
+    # Ajouter la barrière avec un trou
+    ax.plot(
+        [simulation.barrier_position, simulation.barrier_position],
+        [0, simulation.area_size[1] / 2 - simulation.barrier_width],
+        label="Barrière",
+    )
+    ax.plot(
+        [simulation.barrier_position, simulation.barrier_position],
+        [
+            simulation.area_size[1] / 2 + simulation.barrier_width,
+            simulation.area_size[1],
+        ],
+        label="Barrière",
     )
 
-    # Ajouter une légende pour le timer
-    timer_text = ax.text(
-        0.5, 1.05, f"Time: {current_time:.2f}s", transform=ax.transAxes, ha="center"
+    plt.legend()
+
+    anim = FuncAnimation(
+        fig, update, frames=len(positions), interval=interval, blit=True
     )
-
-    def animate(n):
-        nonlocal agents_pos, all_blue_crossed, current_time
-
-        # Mettre à jour le timer
-        current_time += dt
-        timer_text.set_text(f"Time: {current_time:.2f}s")
-
-        # Condition d'arrêt basée sur le temps maximum
-        if current_time >= max_time:
-            ani.event_source.stop()
-
-        # Condition d'arrêt : Tous les rouges et bleus ont traversé
-        all_red_crossed = np.all(agents_pos[agents_side == -1, 0] < -blue_distance)
-        agents_pos = update_agents(
-            agents_pos, agents_side, allow_blue_movement=all_red_crossed
-        )
-        scat.set_offsets(agents_pos)
-
-        if not all_blue_crossed:
-            all_blue_crossed = np.all(agents_pos[agents_side == 1, 0] > 0)
-
-        if all_red_crossed and all_blue_crossed:
-            ani.event_source.stop()
-
-    # Ajout des barrières
-    ax.plot([-0.05, -0.05], [-L, -barrier_width / 2], color="black", linewidth=2)
-    ax.plot([-0.05, -0.05], [barrier_width / 2, L], color="black", linewidth=2)
-
-    ani = animation.FuncAnimation(fig, animate, frames=int(T / dt), interval=50)
+    plt.title("Simulation Quai/Train avec Barrière")
     plt.show()
 
-    # À la fin, enregistrer les données dans `shared_data`
-    shared_data["positions"] = agents_pos.tolist()
-    shared_data["all_blue_crossed"] = all_blue_crossed
-    shared_data["all_red_crossed"] = np.all(
-        agents_pos[agents_side == -1, 0] < -blue_distance
+
+def launch_simulation(nbr_agent, shared_data, alpha, beta):
+    simul = TrainStationSimulation(
+        nbr_agent,
+        door_position=[(-5, 5), (15, 5), (8, 8), (8, 2), (6, -2), (6, 2)],
+        max_time=20,
+        alpha_value=alpha,
+        beta_value=beta,
     )
-    shared_data["final_time"] = current_time
+    blue_time, red_time, positions = run_simulation(
+        simul, shared_data, steps=500, dt=0.05
+    )
+    print(
+        f"Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
+    )
+    animate_simulation(simul, positions)
+    shared_data["final_time"] = blue_time + red_time
+
+
+# Lancer 10 simulations avec différentes tailles et collecter les temps
+"""
+results = []
+team_size = [20, 30]
+
+for size in team_size:
+    simulation = TrainStationSimulation(
+        num_agents_per_team=size,
+        door_position=[(-5, 5), (15, 5)],
+        max_time=20,
+    )
+    blue_time, red_time, positions = simulation.run_simulation(steps=500, dt=0.05)
+    results.append((size, blue_time, red_time))
+
+    # Afficher l'animation pour chaque simulation
+    print(
+        f"Nombre de personnes: {size}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
+    )
+    animate_simulation(simulation, positions)
+
+    shared_data["final_time"] = blue_time + red_time
+"""

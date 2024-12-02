@@ -2,7 +2,7 @@ import pygame
 import pygame_gui
 from multiprocessing import Process, Manager
 from model.constants import SCREEN_WIDTH, SCREEN_HEIGHT, LIGHT_BACKGROUND
-from model.animation import run_simulation
+from model.animation import launch_simulation
 
 
 class SimulationView:
@@ -38,25 +38,25 @@ class SimulationView:
             ),
             manager=self.manager,
         )
-        self.num_agents_input.set_text("100")
+        self.num_agents_input.set_text("20")
 
-        self.barrier_width_label = "Largeur de la barrière :"
-        self.barrier_width_input = pygame_gui.elements.UITextEntryLine(
+        self.alpha_label = "Poids Objectif (alpha) :"
+        self.alpha_input = pygame_gui.elements.UITextEntryLine(
             relative_rect=pygame.Rect(
                 (x_center, SCREEN_HEIGHT * 0.35), (field_width, field_height)
             ),
             manager=self.manager,
         )
-        self.barrier_width_input.set_text("0.15")
+        self.alpha_input.set_text("3.0")
 
-        self.g_label = "Attraction (g) :"
-        self.g_input = pygame_gui.elements.UITextEntryLine(
+        self.beta_label = "Poids Densité (beta) :"
+        self.beta_input = pygame_gui.elements.UITextEntryLine(
             relative_rect=pygame.Rect(
                 (x_center, SCREEN_HEIGHT * 0.45), (field_width, field_height)
             ),
             manager=self.manager,
         )
-        self.g_input.set_text("0.1")
+        self.beta_input.set_text("3.0")
 
         # Boutons pour l'interface
         self.simulation_button = pygame_gui.elements.UIButton(
@@ -90,8 +90,8 @@ class SimulationView:
 
         # Dessiner les étiquettes des champs de texte
         self._draw_label(self.num_agents_label, SCREEN_HEIGHT * 0.25)
-        self._draw_label(self.barrier_width_label, SCREEN_HEIGHT * 0.35)
-        self._draw_label(self.g_label, SCREEN_HEIGHT * 0.45)
+        self._draw_label(self.alpha_label, SCREEN_HEIGHT * 0.35)
+        self._draw_label(self.beta_label, SCREEN_HEIGHT * 0.45)
 
         self.manager.update(time_delta)
         self.manager.draw_ui(self.screen)
@@ -110,15 +110,15 @@ class SimulationView:
                 if event.ui_element == self.simulation_button:
                     # Lire les paramètres
                     num_agents = int(self.num_agents_input.get_text())
-                    barrier_width = float(self.barrier_width_input.get_text())
-                    g = float(self.g_input.get_text())
+                    alpha = float(self.alpha_input.get_text())
+                    beta = float(self.beta_input.get_text())
 
                     # Lancer la simulation
                     with Manager() as manager:
                         shared_data = manager.dict()
                         p = Process(
-                            target=run_simulation,
-                            args=(shared_data, num_agents, barrier_width, g),
+                            target=launch_simulation,
+                            args=(num_agents, shared_data, alpha, beta),
                         )
                         p.start()
                         p.join()
