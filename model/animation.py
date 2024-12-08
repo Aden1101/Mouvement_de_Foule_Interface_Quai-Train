@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from model.Simulation import Agent, TrainStationSimulation
 from matplotlib.animation import FuncAnimation
+import csv
 
 
 # Largeur du trou dans la barrière
@@ -37,6 +38,31 @@ def run_simulation(
             break
 
     return blue_cross_time, red_cross_time, positions
+
+
+def save_simulation_to_csv(file_name, results):
+    """
+    Sauvegarde les résultats d'une simulation dans un fichier CSV.
+
+    Args:
+        file_name (str): Nom du fichier CSV.
+        results (list of dict): Liste des résultats de simulation.
+    """
+    with open(file_name, mode="w", newline="") as file:
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "Simulation",
+                "Nb_agents",
+                "Alpha",
+                "Beta",
+                "Blue_time",
+                "Red_time",
+                "Final_time",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(results)
 
 
 # Visualisation
@@ -78,15 +104,14 @@ def animate_simulation(simulation, positions, interval=100):
     plt.show()
 
 
-def launch_simulation(nbr_agent, shared_data, alpha, beta):
+def launch_simulation(
+    nbr_agent, shared_data, alpha, beta, save_file=None, sim_number=1
+):
+    if "results" not in shared_data:  # Si on fait plusieurs simulations par exemple
+        shared_data["results"] = []
     simul = TrainStationSimulation(
         nbr_agent,
-        door_position=[
-            (-5, 5),
-            (15, 5),
-            (9, 8),
-            (9, 2),
-        ],
+        door_position=[(-5, 5), (15, 5), (9, 8), (9, 2)],
         max_time=20,
         alpha_value=alpha,
         beta_value=beta,
@@ -95,10 +120,37 @@ def launch_simulation(nbr_agent, shared_data, alpha, beta):
         simul, shared_data, steps=500, dt=0.05
     )
     print(
-        f"Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
+        f"Simulation {sim_number}: Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
     )
+    # Sauvegarde les résultats dans shared_data pour les statistiques
+    # Récupérer la liste existante, la modifier localement, puis la réassigner
+    results = shared_data["results"]  # Copie locale
+    results.append(
+        {
+            "Simulation": sim_number,
+            "Nb_agents": nbr_agent,
+            "Alpha": alpha,
+            "Beta": beta,
+            "Blue_time": blue_time,
+            "Red_time": red_time,
+            "Final_time": (
+                blue_time + red_time
+                if blue_time is not None and red_time is not None
+                else None
+            ),
+        }
+    )
+    shared_data["results"] = results  # Réassigner à shared_data
+
     animate_simulation(simul, positions)
-    shared_data["final_time"] = blue_time + red_time
+
+    # Sauvegarde dans un fichier CSV si nécessaire
+    if not save_file:
+        save_file = "simulation_results.csv"
+
+    save_simulation_to_csv(save_file, shared_data["results"])
+
+    return shared_data
 
 
 # Lancer 10 simulations avec différentes tailles et collecter les temps

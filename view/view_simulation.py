@@ -99,7 +99,11 @@ class SimulationView:
         # Afficher les données après simulation
         if self.shared_data:
             font = pygame.font.Font(None, int(SCREEN_HEIGHT * 0.03))
-            text = font.render(f"Résultat : {self.shared_data}", True, (0, 0, 0))
+            text = font.render(
+                f"Résultat : {self.shared_data["results"][0]["Final_time"]}",
+                True,
+                (0, 0, 0),
+            )
             self.screen.blit(text, (SCREEN_WIDTH * 0.05, SCREEN_HEIGHT * 0.7))
 
         pygame.display.flip()
