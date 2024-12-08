@@ -128,7 +128,8 @@ class TrainStationSimulation:
                     "red",
                     side=-1,
                     politeness=politeness,
-                    objective=self.door_position[3],
+                    objective=[10, 10],
+                    # objective=self.door_position[i],
                 )
             )
 
