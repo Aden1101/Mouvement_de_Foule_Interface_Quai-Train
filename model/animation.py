@@ -20,9 +20,11 @@ def run_simulation(
     positions = []
     blue_cross_time = None
     red_cross_time = None
+    time = 0
 
     for step in range(steps):
         simul.update_agents(dt)
+        time += dt
         positions.append([agent.position.copy() for agent in simul.agents])
 
         if blue_cross_time is None and simul.all_blues_crossed:
@@ -32,7 +34,6 @@ def run_simulation(
             red_cross_time = step * dt
 
         if simul.all_blues_crossed and simul.are_all_reds_crossed():
-
             break
 
     return blue_cross_time, red_cross_time, positions
@@ -80,7 +81,12 @@ def animate_simulation(simulation, positions, interval=100):
 def launch_simulation(nbr_agent, shared_data, alpha, beta):
     simul = TrainStationSimulation(
         nbr_agent,
-        door_position=[(-5, 5), (15, 5), (8, 8), (8, 2), (6, -2), (6, 2)],
+        door_position=[
+            (-5, 5),
+            (15, 5),
+            (9, 8),
+            (9, 2),
+        ],
         max_time=20,
         alpha_value=alpha,
         beta_value=beta,
