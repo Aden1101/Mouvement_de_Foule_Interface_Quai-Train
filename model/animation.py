@@ -12,7 +12,11 @@ def run_simulation(
     steps=100,
     dt=0.02,
 ):
-    """Effectue la simulation et retourne les temps nécessaires pour chaque équipe."""
+    """
+    Effectue la simulation et retourne les temps nécessaires pour chaque équipe.
+
+    delay_after_crossing: Temps d'attente supplémentaire après que tous les agents ont traversé.
+    """
     positions = []
     blue_cross_time = None
     red_cross_time = None
@@ -27,7 +31,8 @@ def run_simulation(
         if red_cross_time is None and simul.are_all_reds_crossed():
             red_cross_time = step * dt
 
-        if blue_cross_time is not None and red_cross_time is not None:
+        if simul.all_blues_crossed and simul.are_all_reds_crossed():
+
             break
 
     return blue_cross_time, red_cross_time, positions
@@ -51,6 +56,7 @@ def animate_simulation(simulation, positions, interval=100):
     ax.plot(
         [simulation.barrier_position, simulation.barrier_position],
         [0, simulation.area_size[1] / 2 - simulation.barrier_width],
+        color="black",
         label="Barrière",
     )
     ax.plot(
@@ -59,7 +65,7 @@ def animate_simulation(simulation, positions, interval=100):
             simulation.area_size[1] / 2 + simulation.barrier_width,
             simulation.area_size[1],
         ],
-        label="Barrière",
+        color="black",
     )
 
     plt.legend()

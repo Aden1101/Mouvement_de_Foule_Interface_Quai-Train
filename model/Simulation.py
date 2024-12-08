@@ -85,6 +85,7 @@ class TrainStationSimulation:
                     [self.area_size[0] / 2 + 0.15, self.area_size[1] / 3],
                     [2 * self.area_size[0] / 3, 2 * self.area_size[1] / 3],
                 )
+                radius = np.random.uniform(0.1, 0.15)
                 if not any(
                     np.linalg.norm(position - other.position) < (radius + other.radius)
                     for other in agents
@@ -121,15 +122,14 @@ class TrainStationSimulation:
             politeness = np.clip(
                 np.random.lognormal(mean=0, sigma=0.5), 0, 1
             )  # Niveau de politesse biaisé vers 1 (poli)
-            i = np.random.randint(1, 6)
+            i = np.random.randint(1, len(self.door_position))
             agents.append(
                 Agent(
                     position,
                     "red",
                     side=-1,
                     politeness=politeness,
-                    objective=[10, 10],
-                    # objective=self.door_position[i],
+                    objective=self.door_position[i],
                 )
             )
 
@@ -155,18 +155,12 @@ class TrainStationSimulation:
         utility = 0
 
         # Vérifier si l'agent chevauche la barrière en dehors du trou
-        if (
-            agent.side == 1
-            and agent.position[0] - agent.radius <= self.barrier_position
-        ) or (
-            agent.side == -1
-            and agent.position[0] + agent.radius >= self.barrier_position
-        ):
-            if not (
-                self.area_size[1] / 2 - self.barrier_width
-                <= agent.position[1]
-                <= self.area_size[1] / 2 + self.barrier_width
-            ):
+        # Vérifier si l'agent touche ou dépasse la barrière horizontalement
+        if abs(agent.position[0] - self.barrier_position) <= agent.radius:
+            lower_bound = self.area_size[1] / 2 - self.barrier_width
+            upper_bound = self.area_size[1] / 2 + self.barrier_width
+
+            if not (lower_bound <= agent.position[1] <= upper_bound):
                 return float("inf")
 
         # Vérifier si l'agent chevauche un autre agent
@@ -234,7 +228,7 @@ class TrainStationSimulation:
         """Met à jour les positions de tous les agents."""
         self.current_time += dt
         self.are_all_blues_crossed()
-        shuffled_list = np.copy(self.agents)
+        shuffled_list = list(self.agents)
         np.random.shuffle(shuffled_list)
         for agent in shuffled_list:
             if agent.side == -1:
