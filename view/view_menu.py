@@ -31,7 +31,7 @@ class MenuView:
             relative_rect=pygame.Rect(
                 (x_center, SCREEN_HEIGHT * 0.5), (button_width, button_height)
             ),
-            text="Simulation Personnalisée",
+            text="Analyse de Simulations",
             manager=self.manager,
         )
         self.quit_button = pygame_gui.elements.UIButton(
