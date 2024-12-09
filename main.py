@@ -12,7 +12,7 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption("Simulation Mouvements de Foule")
 
-    # Création des vues
+    # Création des vues avec MenuView
     menu_view = MenuView(screen)
     simulation_manager = SimulationManager(
         num_agents=100, barrier_width=0.15, collision_distance=0.05
