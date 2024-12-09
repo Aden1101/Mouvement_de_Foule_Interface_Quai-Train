@@ -61,6 +61,7 @@ class TrainStationSimulation:
         barrier_width=0.4,
         alpha_value=3.0,
         beta_value=3.0,
+        max_velocity=1.5
     ):
         self.alpha = alpha_value
         self.beta = beta_value
@@ -74,6 +75,7 @@ class TrainStationSimulation:
         self.max_time = max_time  # Temps total de simulation
         self.current_time = 0  # Temps écoulé
         self.all_blues_crossed = False
+        self.max_velocity = max_velocity 
 
     def _initialize_agents(self):
         """Initialise deux équipes d'agents tout en évitant les chevauchements initiaux."""
@@ -242,3 +244,85 @@ class TrainStationSimulation:
 
             velocity = self.calculate_velocity(agent)
             agent.update_position(velocity, dt)
+
+def test_velocity_limits():
+    """Test pour vérifier que la vitesse maximale des agents est respectée."""
+    simulation = TrainStationSimulation(
+        num_agents_per_team=5,door_position=[(-5, 5), (15, 5), (9, 8), (9, 2)], max_velocity=1.5
+    )
+    for agent in simulation.agents:
+        velocity = simulation.calculate_velocity(agent)
+        assert np.linalg.norm(velocity) <= simulation.max_velocity, (
+            f"La vitesse de l'agent a dépassé la limite : {np.linalg.norm(velocity)}"
+        )
+    print("Tous les tests de vitesse ont réussi!")
+
+# Exécuter le test
+test_velocity_limits()
+
+def test_barrier_respect():
+    """Test pour vérifier que les agents ne traversent pas la barrière en dehors du trou."""
+    simulation = TrainStationSimulation(
+        num_agents_per_team=5,
+        door_position=[(5, 5)],
+        max_velocity=1.5
+    )
+    for agent in simulation.agents:
+        if abs(agent.position[0] - simulation.barrier_position) <= agent.radius:
+            lower_bound = simulation.area_size[1] / 2 - simulation.barrier_width
+            upper_bound = simulation.area_size[1] / 2 + simulation.barrier_width
+            assert lower_bound <= agent.position[1] <= upper_bound, (
+                f"L'agent {agent} a traversé la barrière en dehors du trou."
+            )
+    print("Tous les agents respectent la barrière.")
+
+def test_agent_density():
+    """Test pour vérifier que les agents maintiennent une distance minimale entre eux pendant la simulation."""
+    simulation = TrainStationSimulation(
+        num_agents_per_team=5,
+        door_position=[(5, 5)],
+        max_velocity=1.5
+    )
+    simulation.update_agents(dt=0.1)
+    for i, agent1 in enumerate(simulation.agents):
+        for j, agent2 in enumerate(simulation.agents):
+            if i != j:
+                distance = np.linalg.norm(agent1.position - agent2.position)
+                assert distance >= (agent1.radius + agent2.radius), (
+                    f"Collision détectée entre les agents {i} et {j} pendant la simulation."
+                )
+    print("Aucune collision détectée entre les agents.")
+
+def test_agent_density():
+    """Test pour vérifier que les agents maintiennent une distance minimale entre eux pendant la simulation."""
+    simulation = TrainStationSimulation(
+        num_agents_per_team=5,
+        door_position=[(5, 5)],
+        max_velocity=1.5
+    )
+    simulation.update_agents(dt=0.1)
+    for i, agent1 in enumerate(simulation.agents):
+        for j, agent2 in enumerate(simulation.agents):
+            if i != j:
+                distance = np.linalg.norm(agent1.position - agent2.position)
+                assert distance >= (agent1.radius + agent2.radius), (
+                    f"Collision détectée entre les agents {i} et {j} pendant la simulation."
+                )
+    print("Aucune collision détectée entre les agents.")
+
+def test_agent_convergence():
+    """Test pour vérifier que tous les agents atteignent leurs objectifs dans un temps limite."""
+    simulation = TrainStationSimulation(
+        num_agents_per_team=5,
+        door_position=[(5, 5)],
+        max_velocity=1.5
+    )
+    time_limit = 10
+    for _ in range(int(time_limit / 0.1)):
+        simulation.update_agents(dt=0.1)
+    for agent in simulation.agents:
+        distance_to_objective = np.linalg.norm(agent.position - np.array([agent.objective, 5]))
+        assert distance_to_objective <= agent.radius, (
+            f"L'agent {agent} n'a pas atteint son objectif dans le temps imparti."
+        )
+    print("Tous les agents ont atteint leurs objectifs.")
