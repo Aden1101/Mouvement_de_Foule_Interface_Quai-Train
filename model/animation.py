@@ -4,6 +4,7 @@ import matplotlib.animation as animation
 from model.Simulation import Agent, TrainStationSimulation
 from matplotlib.animation import FuncAnimation
 import csv
+import os
 
 
 # Largeur du trou dans la barrière
@@ -42,13 +43,18 @@ def run_simulation(
 
 def save_simulation_to_csv(file_name, results):
     """
-    Sauvegarde les résultats d'une simulation dans un fichier CSV.
+    Saves the results of a simulation to a CSV file.
+    Appends to the file if it already exists; creates a new file if it does not.
 
     Args:
-        file_name (str): Nom du fichier CSV.
-        results (list of dict): Liste des résultats de simulation.
+        file_name (str): Name of the CSV file.
+        results (list of dict): List of simulation results.
     """
-    with open(file_name, mode="w", newline="") as file:
+    file_exists = os.path.exists(file_name)  # Check if the file already exists
+    mode = "a" if file_exists else "w"  # Append if file exists, write otherwise
+    header = not file_exists  # Write header if file does not exist
+
+    with open(file_name, mode=mode, newline="") as file:
         writer = csv.DictWriter(
             file,
             fieldnames=[
@@ -61,7 +67,8 @@ def save_simulation_to_csv(file_name, results):
                 "Final_time",
             ],
         )
-        writer.writeheader()
+        if header:
+            writer.writeheader()
         writer.writerows(results)
 
 
