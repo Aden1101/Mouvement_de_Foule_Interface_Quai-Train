@@ -1,6 +1,7 @@
 import pygame
 import pygame_gui
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from model.constants import SCREEN_WIDTH, SCREEN_HEIGHT, LIGHT_BACKGROUND
 
@@ -91,51 +92,72 @@ class CSVAnalysisView:
         """Affiche des graphiques basés sur le DataFrame chargé."""
         if self.dataframe is not None:
             try:
-                import matplotlib.pyplot as plt
 
-                # Exemple de graphique : Histogramme des temps finaux
-                if "Final_time" in self.dataframe.columns:
-                    plt.figure()
-                    self.dataframe["Final_time"].hist(bins=10)
-                    plt.title("Distribution des Temps Finaux")
-                    plt.xlabel("Temps Final")
-                    plt.ylabel("Nombre de Simulations")
-                    plt.show()
+                # Vérifier si plusieurs simulations sont présentes
+                if "Simulation" in self.dataframe.columns:
+                    print(
+                        "Calcul des moyennes et variances pour plusieurs simulations..."
+                    )
+                    grouped = self.dataframe.groupby("Simulation")
 
-                # Exemple de graphique : Scatter des paramètres Alpha et Beta
+                    # Calcul des moyennes et variances par simulation
+                    stats = grouped.agg(
+                        {
+                            "Final_time": ["mean", "var"],
+                            "Blue_time": ["mean", "var"],
+                            "Red_time": ["mean", "var"],
+                        }
+                    )
+                    stats.columns = [
+                        "_".join(col) for col in stats.columns
+                    ]  # Flatten columns
+                    print(stats)
+
+                # Graphique 1 : Temps final en fonction du nombre de personnes par groupe
                 if (
-                    "Alpha" in self.dataframe.columns
-                    and "Beta" in self.dataframe.columns
+                    "Nb_agents" in self.dataframe.columns
+                    and "Final_time" in self.dataframe.columns
                 ):
                     plt.figure()
-                    plt.scatter(self.dataframe["Alpha"], self.dataframe["Beta"])
-                    plt.title("Paramètres Alpha vs Beta")
-                    plt.xlabel("Alpha")
-                    plt.ylabel("Beta")
+                    for name, group in self.dataframe.groupby(["Alpha", "Beta"]):
+                        plt.scatter(
+                            group["Nb_agents"],
+                            group["Final_time"],
+                            label=f"Alpha={name[0]}, Beta={name[1]}",
+                            alpha=0.7,
+                        )
+                    plt.title(
+                        "Temps Final en fonction du Nombre de Personnes par Groupe"
+                    )
+                    plt.xlabel("Nombre de Personnes (Nb_agents)")
+                    plt.ylabel("Temps Final")
+                    plt.legend()
                     plt.show()
 
-                # Exemple : Temps de montée et descente par simulation
+                # Graphique 2 : Moyenne et variance des temps par simulation
                 if "Simulation" in self.dataframe.columns:
                     plt.figure()
-                    plt.plot(
-                        self.dataframe["Simulation"],
-                        self.dataframe["Blue_time"],
-                        label="Temps de descente",
-                        marker="o",
+                    stats = (
+                        self.dataframe.groupby("Simulation")
+                        .agg({"Final_time": ["mean", "var"]})
+                        .reset_index()
                     )
-                    plt.plot(
-                        self.dataframe["Simulation"],
-                        self.dataframe["Red_time"],
-                        label="Temps de montée",
-                        marker="x",
+                    stats.columns = ["Simulation", "Mean_Final_time", "Var_Final_time"]
+
+                    plt.errorbar(
+                        stats["Simulation"],
+                        stats["Mean_Final_time"],
+                        yerr=np.sqrt(stats["Var_Final_time"]),
+                        fmt="o",
+                        label="Temps Final (moyenne et variance)",
                     )
-                    plt.title("Temps de descente et de montée par simulation")
+                    plt.title("Moyenne et Variance des Temps Finaux par Simulation")
                     plt.xlabel("Simulation")
-                    plt.ylabel("Temps")
+                    plt.ylabel("Temps Final")
                     plt.legend()
                     plt.show()
 
             except Exception as e:
-                print("Erreur lors de la génération des graphiques :", e)
+                print(f"Une erreur est survenue : {e}")
         else:
             print("Aucun fichier CSV chargé.")
