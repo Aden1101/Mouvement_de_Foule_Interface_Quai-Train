@@ -12,23 +12,17 @@ class SimulationView:
         self.manager = pygame_gui.UIManager((SCREEN_WIDTH, SCREEN_HEIGHT))
 
         # Titre
-        self.title_font = pygame.font.Font(
-            None, int(SCREEN_HEIGHT * 0.08)
-        )  # Police pour le titre
+        self.title_font = pygame.font.Font(None, int(SCREEN_HEIGHT * 0.08))
         self.title_text = "Simulation Personnalisée"
 
         # Police pour les étiquettes
         self.label_font = pygame.font.Font(None, int(SCREEN_HEIGHT * 0.04))
 
         # Dimensions et position centrée pour les champs et les boutons
-        field_width = SCREEN_WIDTH * 0.4  # Largeur des champs et boutons
-        field_height = SCREEN_HEIGHT * 0.05  # Hauteur des champs
-        label_width = SCREEN_WIDTH * 0.15  # Largeur des étiquettes
-        button_height = SCREEN_HEIGHT * 0.07  # Hauteur des boutons
-        x_center = (SCREEN_WIDTH - field_width) / 2  # Centrage horizontal
-        label_x = (
-            x_center - label_width - 20
-        )  # Position des étiquettes à gauche des champs
+        field_width = SCREEN_WIDTH * 0.4
+        field_height = SCREEN_HEIGHT * 0.05
+        button_height = SCREEN_HEIGHT * 0.07
+        x_center = (SCREEN_WIDTH - field_width) / 2
 
         # Champs de saisie pour les paramètres
         self.num_agents_label = "Nombre d'agents :"
@@ -58,17 +52,45 @@ class SimulationView:
         )
         self.beta_input.set_text("3.0")
 
-        # Boutons pour l'interface
+        self.num_simulations_label = "Nombre de simulations :"
+        self.num_simulations_input = pygame_gui.elements.UITextEntryLine(
+            relative_rect=pygame.Rect(
+                (x_center, SCREEN_HEIGHT * 0.55), (field_width, field_height)
+            ),
+            manager=self.manager,
+        )
+        self.num_simulations_input.set_text("1")
+
+        self.time_limit_label = "Temps limite (s) :"
+        self.time_limit_input = pygame_gui.elements.UITextEntryLine(
+            relative_rect=pygame.Rect(
+                (x_center, SCREEN_HEIGHT * 0.65), (field_width, field_height)
+            ),
+            manager=self.manager,
+        )
+        self.time_limit_input.set_text("40")
+
+        # Bouton toggle pour afficher ou non les animations
+        self.show_animation_button = pygame_gui.elements.UIButton(
+            relative_rect=pygame.Rect(
+                (x_center, SCREEN_HEIGHT * 0.75), (field_width, button_height)
+            ),
+            text="Animations : ON",
+            manager=self.manager,
+        )
+        self.show_animation_enabled = True  # État initial : animations activées
+
+        # Boutons pour lancer ou revenir
         self.simulation_button = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(
-                (x_center, SCREEN_HEIGHT * 0.6), (field_width, button_height)
+                (x_center, SCREEN_HEIGHT * 0.85), (field_width, button_height)
             ),
-            text="Lancer la Simulation",
+            text="Lancer les Simulations",
             manager=self.manager,
         )
         self.back_button = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(
-                (SCREEN_WIDTH * 0.05, SCREEN_HEIGHT * 0.85),
+                (SCREEN_WIDTH * 0.05, SCREEN_HEIGHT * 0.9),
                 (SCREEN_WIDTH * 0.2, button_height),
             ),
             text="Retour",
@@ -92,49 +114,63 @@ class SimulationView:
         self._draw_label(self.num_agents_label, SCREEN_HEIGHT * 0.25)
         self._draw_label(self.alpha_label, SCREEN_HEIGHT * 0.35)
         self._draw_label(self.beta_label, SCREEN_HEIGHT * 0.45)
+        self._draw_label(self.num_simulations_label, SCREEN_HEIGHT * 0.55)
+        self._draw_label(self.time_limit_label, SCREEN_HEIGHT * 0.65)
 
         self.manager.update(time_delta)
         self.manager.draw_ui(self.screen)
-
-        # Afficher les données après simulation
-        if self.shared_data:
-            font = pygame.font.Font(None, int(SCREEN_HEIGHT * 0.03))
-            text = font.render(
-                f"Résultat : {self.shared_data["results"][0]["Final_time"]}",
-                True,
-                (0, 0, 0),
-            )
-            self.screen.blit(text, (SCREEN_WIDTH * 0.05, SCREEN_HEIGHT * 0.7))
-
         pygame.display.flip()
 
     def handle_events(self, event):
         if event.type == pygame.USEREVENT:
             if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.simulation_button:
-                    # Lire les paramètres
                     num_agents = int(self.num_agents_input.get_text())
                     alpha = float(self.alpha_input.get_text())
                     beta = float(self.beta_input.get_text())
+                    num_simulations = int(self.num_simulations_input.get_text())
+                    time_limit = float(self.time_limit_input.get_text())
+                    show_animation = self.show_animation_enabled
 
-                    # Lancer la simulation
                     with Manager() as manager:
                         shared_data = manager.dict()
-                        p = Process(
-                            target=launch_simulation,
-                            args=(num_agents, shared_data, alpha, beta),
-                        )
-                        p.start()
-                        p.join()
+                        processes = []
+                        for i in range(num_simulations):
+                            p = Process(
+                                target=launch_simulation,
+                                args=(
+                                    num_agents,
+                                    shared_data,
+                                    alpha,
+                                    beta,
+                                    None,
+                                    i + 1,
+                                    show_animation,
+                                    time_limit,  # Passer le temps limite
+                                ),
+                            )
+                            processes.append(p)
+                            p.start()
 
-                        # Récupérer les données après simulation
+                        for p in processes:
+                            p.join()
+
                         self.shared_data = dict(shared_data)
                 elif event.ui_element == self.back_button:
                     return "menu"
+                elif event.ui_element == self.show_animation_button:
+                    # Basculer l'état des animations
+                    self.show_animation_enabled = not self.show_animation_enabled
+                    # Mettre à jour le texte du bouton
+                    new_text = (
+                        "Animations : ON"
+                        if self.show_animation_enabled
+                        else "Animations : OFF"
+                    )
+                    self.show_animation_button.set_text(new_text)
         return "simulation"
 
     def _draw_label(self, text, y_position):
-        """Dessiner une étiquette à une position donnée."""
         label_surface = self.label_font.render(text, True, (0, 0, 0))
         label_rect = label_surface.get_rect(
             midright=((SCREEN_WIDTH * 0.4) - 10, y_position + (SCREEN_HEIGHT * 0.025))

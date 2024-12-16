@@ -13,11 +13,11 @@ def run_simulation(
     shared_data,
     steps=100,
     dt=0.02,
+    time_limit=40,  # Temps limite en secondes
 ):
     """
     Effectue la simulation et retourne les temps nécessaires pour chaque équipe.
-
-    delay_after_crossing: Temps d'attente supplémentaire après que tous les agents ont traversé.
+    Si la simulation dépasse le temps limite, elle s'arrête.
     """
     positions = []
     blue_cross_time = None
@@ -35,7 +35,19 @@ def run_simulation(
         if red_cross_time is None and simul.are_all_reds_crossed():
             red_cross_time = step * dt
 
+        # Arrêter si tous les agents ont terminé
         if simul.all_blues_crossed and simul.are_all_reds_crossed():
+            break
+
+        # Arrêter si le temps limite est atteint
+        if time >= time_limit:
+            print(f"Temps limite atteint : {time_limit}s. Simulation arrêtée.")
+            blue_cross_time = (
+                blue_cross_time if blue_cross_time is not None else time_limit
+            )
+            red_cross_time = (
+                red_cross_time if red_cross_time is not None else time_limit
+            )
             break
 
     return blue_cross_time, red_cross_time, positions
@@ -112,10 +124,18 @@ def animate_simulation(simulation, positions, interval=100):
 
 
 def launch_simulation(
-    nbr_agent, shared_data, alpha, beta, save_file=None, sim_number=1
+    nbr_agent,
+    shared_data,
+    alpha,
+    beta,
+    save_file=None,
+    sim_number=1,
+    show_animation=True,
+    time_limit=40,  # Temps limite par défaut
 ):
-    if "results" not in shared_data:  # Si on fait plusieurs simulations par exemple
+    if "results" not in shared_data:
         shared_data["results"] = []
+
     simul = TrainStationSimulation(
         nbr_agent,
         door_position=[(-5, 5), (15, 5), (9, 8), (9, 2)],
@@ -123,15 +143,17 @@ def launch_simulation(
         alpha_value=alpha,
         beta_value=beta,
     )
+
+    # Exécuter la simulation avec une limite de temps
     blue_time, red_time, positions = run_simulation(
-        simul, shared_data, steps=500, dt=0.05
+        simul, shared_data, steps=500, dt=0.05, time_limit=time_limit
     )
     print(
         f"Simulation {sim_number}: Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
     )
-    # Sauvegarde les résultats dans shared_data pour les statistiques
-    # Récupérer la liste existante, la modifier localement, puis la réassigner
-    results = shared_data["results"]  # Copie locale
+
+    # Ajouter les résultats, en tenant compte du temps limite
+    results = shared_data["results"]
     results.append(
         {
             "Simulation": sim_number,
@@ -143,42 +165,19 @@ def launch_simulation(
             "Final_time": (
                 blue_time + red_time
                 if blue_time is not None and red_time is not None
-                else None
+                else time_limit
             ),
         }
     )
-    shared_data["results"] = results  # Réassigner à shared_data
+    shared_data["results"] = results
 
-    animate_simulation(simul, positions)
+    if show_animation:
+        animate_simulation(simul, positions)
 
-    # Sauvegarde dans un fichier CSV si nécessaire
     if not save_file:
         save_file = "simulation_results.csv"
 
     save_simulation_to_csv(save_file, shared_data["results"])
+    print(f"Résultats sauvegardés dans {save_file}")
 
     return shared_data
-
-
-# Lancer 10 simulations avec différentes tailles et collecter les temps
-"""
-results = []
-team_size = [20, 30]
-
-for size in team_size:
-    simulation = TrainStationSimulation(
-        num_agents_per_team=size,
-        door_position=[(-5, 5), (15, 5)],
-        max_time=20,
-    )
-    blue_time, red_time, positions = simulation.run_simulation(steps=500, dt=0.05)
-    results.append((size, blue_time, red_time))
-
-    # Afficher l'animation pour chaque simulation
-    print(
-        f"Nombre de personnes: {size}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
-    )
-    animate_simulation(simulation, positions)
-
-    shared_data["final_time"] = blue_time + red_time
-"""
