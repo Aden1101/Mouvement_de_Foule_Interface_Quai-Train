@@ -27,7 +27,7 @@ class MenuView:
             text="Scénarios de Simulation",
             manager=self.manager,
         )
-        self.simulation_custom_button = pygame_gui.elements.UIButton(
+        self.analysis_button = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(
                 (x_center, SCREEN_HEIGHT * 0.5), (button_width, button_height)
             ),
@@ -45,24 +45,24 @@ class MenuView:
     def update(self, time_delta):
         self.screen.fill(LIGHT_BACKGROUND)
 
-        # Dessiner le titre
+        # Afficher le titre
         title_surface = self.title_font.render(self.title_text, True, (0, 0, 0))
         title_rect = title_surface.get_rect(
             center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.2)
         )
         self.screen.blit(title_surface, title_rect)
 
-        self.manager.update(time_delta)
-        self.manager.draw_ui(self.screen)
-        pygame.display.flip()
+        self.manager.update(time_delta)  # Gestion des interactions
+        self.manager.draw_ui(self.screen)  # Affiche le reste de l'UI (boutons,etc...)
+        pygame.display.flip()  # Mets à jour l'affichage
 
     def handle_events(self, event):
         if event.type == pygame.USEREVENT:
             if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.simulation_scenario_button:
                     return "simulation_scenario"
-                elif event.ui_element == self.simulation_custom_button:
-                    return "simulation_custom"
+                elif event.ui_element == self.analysis_button:
+                    return "analysis_csv"
                 elif event.ui_element == self.quit_button:
                     pygame.quit()
                     exit()

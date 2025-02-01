@@ -1,36 +1,30 @@
 import pygame
-from view.view_menu import MenuView
-from view.view_simulation import SimulationView
-from view.view_csv import CSVAnalysisView
+from view.view_menu import MenuView  # Vue principale
+from view.view_simulation import SimulationView  # Vue menu simulation
+from view.view_csv import CSVAnalysisView  # Vue menu analyse statistique
 from controller.controller import Controller
-from model.Simulation import SimulationManager
-from model.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from model.constants import SCREEN_WIDTH, SCREEN_HEIGHT  # Constantes de taille
 
 
 def main():
     pygame.init()
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("Simulation Mouvements de Foule")
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))  # Crée la fenêtre
+    pygame.display.set_caption("Simulation de mouvements de foule")  # Nom de la fenêtre
 
-    # Création des vues avec MenuView
+    # Création des différentes vues
     menu_view = MenuView(screen)
-    simulation_manager = SimulationManager(
-        num_agents=100, barrier_width=0.15, collision_distance=0.05
-    )
-    simulation_view = SimulationView(screen, simulation_manager)
-    csv_analysis_view = CSVAnalysisView(screen)  # Nouvelle vue d'analyse CSV
+    simulation_view = SimulationView(screen)
+    csv_analysis_view = CSVAnalysisView(screen)
 
     # Création du contrôleur avec toutes les vues
-    controller = Controller(
-        menu_view, simulation_view, csv_analysis_view, simulation_manager
-    )
+    controller = Controller(menu_view, simulation_view, csv_analysis_view)
 
     clock = pygame.time.Clock()
 
-    # Main loop
+    # Boucle principale
     while True:
         time_delta = clock.tick(30) / 1000.0
-        controller.handle_events()
+        controller.handle_events()  # Gestion des évènements
 
         # Gestion des vues
         if controller.current_view == "menu":
@@ -41,5 +35,6 @@ def main():
             csv_analysis_view.update(time_delta)
 
 
+# Entrée programme
 if __name__ == "__main__":
     main()

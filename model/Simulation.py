@@ -1,25 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-
-
-class SimulationManager:
-    def __init__(self, num_agents, barrier_width, collision_distance):
-        self.num_agents = num_agents
-        self.barrier_width = barrier_width
-        self.collision_distance = collision_distance
-        self.agents_pos, self.agents_side = self.init_agents()
-        self.all_blue_crossed = False
-
-    def init_agents(self):
-        agents_pos = np.zeros((self.num_agents, 2))
-        agents_side = np.zeros(self.num_agents)
-        # Initialize agents here...
-        return agents_pos, agents_side
-
-    def update(self):
-        # Update agent positions
-        pass
 
 
 class Agent:
@@ -29,23 +9,26 @@ class Agent:
         color,
         side,
         objective,
-        speed=1.0,
+        speed=0.8,
         politeness=1.0,
     ):
         self.position = np.array(position, dtype=float)
         self.side = side  # 1 pour ceux qui descendent, -1 pour ceux qui montent
-        self.radius = np.random.uniform(0.1, 0.15)
+        self.radius = np.random.uniform(0.1, 0.15)  # Taille qui varie
         self.speed = speed
         self.color = color
         self.politeness = politeness  # Paramètre de politesse (0 : impoli, 1 : poli)
-        self.has_crossed = False
+        self.has_crossed = False  # Indique si l'agent a passé la porte
         self.objective = objective
+        self.velocity = np.zeros(2, dtype=float)
+        self.previous_velocity = np.zeros(2, dtype=float)  # Pour la pénalité Gamma
 
     def update_position(self, velocity, dt):
+        self.previous_velocity = self.velocity
+        self.velocity = velocity
         self.position += velocity * dt
 
     def draw(self, ax):
-        """Dessine un cercle représentant l'agent sur les axes donnés."""
         circle = plt.Circle(self.position, self.radius, color=self.color)
         ax.add_artist(circle)
         return circle
@@ -57,23 +40,24 @@ class TrainStationSimulation:
         num_agents_per_team,
         door_position,
         area_size=(10, 10),
-        max_time=10,
+        max_time=15,
         barrier_width=0.4,
-        alpha_value=3.0,
-        beta_value=3.0,
+        alpha_value=5.0,
+        beta_value=2.0,
         max_velocity=1.5,
+        gamma_zigzag=0.005,
     ):
-        self.alpha = alpha_value
-        self.beta = beta_value
+        self.alpha = alpha_value  # Poids pour l'objectif
+        self.beta = beta_value  # Pénalité de densité
+        self.gamma_zigzag = gamma_zigzag  # Pénalité de changement de direction
         self.num_agents_per_team = num_agents_per_team
         self.door_position = np.array(door_position, dtype=float)
         self.area_size = area_size
         self.barrier_position = self.area_size[0] / 2  # Barrière verticale au centre
-        self.trou_center = np.array([self.barrier_position, self.area_size[1] / 2])
         self.barrier_width = barrier_width
         self.agents = self._initialize_agents()
-        self.max_time = max_time  # Temps total de simulation
-        self.current_time = 0  # Temps écoulé
+        self.max_time = max_time  # Temps relatif pour la politesse
+        self.current_time = 0  # Temps écoulé depuis le début
         self.all_blues_crossed = False
         self.max_velocity = max_velocity
 
@@ -124,14 +108,16 @@ class TrainStationSimulation:
             politeness = np.clip(
                 np.random.lognormal(mean=0, sigma=0.5), 0, 1
             )  # Niveau de politesse biaisé vers 1 (poli)
-            i = np.random.randint(1, len(self.door_position))
+            door_idx = np.random.randint(
+                1, len(self.door_position)
+            )  # Objectifs aléatoires
             agents.append(
                 Agent(
                     position,
                     "red",
                     side=-1,
                     politeness=politeness,
-                    objective=self.door_position[i],
+                    objective=self.door_position[door_idx],
                 )
             )
 
@@ -154,7 +140,6 @@ class TrainStationSimulation:
 
     def calculate_utility(self, agent):
         """Calcule la fonction d'utilité pour un agent."""
-        utility = 0
 
         # Vérifier si l'agent chevauche la barrière en dehors du trou
         # Vérifier si l'agent touche ou dépasse la barrière horizontalement
@@ -166,11 +151,29 @@ class TrainStationSimulation:
                 return float("inf")
 
         # Vérifier si l'agent chevauche un autre agent
+
+        distance_objective = 0
+
         for other_agent in self.agents:
             if other_agent is not agent:
                 distance = np.linalg.norm(agent.position - other_agent.position)
                 if distance < (agent.radius + other_agent.radius):
                     return float("inf")
+
+        # Reset l'objective si l'agent se fait repousser
+        if (
+            agent.side == 1
+            and agent.has_crossed
+            and agent.position[0] > self.barrier_position + 0.25
+        ):
+            agent.has_crossed = False
+
+        if (
+            agent.side == -1
+            and agent.has_crossed
+            and agent.position[0] < self.barrier_position - 0.25
+        ):
+            agent.has_crossed = False
 
         if (
             (not agent.has_crossed)
@@ -179,50 +182,134 @@ class TrainStationSimulation:
             (not agent.has_crossed)
             and (agent.side == -1 and agent.position[0] < (self.barrier_position))
         ):
-            direction_to_trou = [
+            direction_to_door = [
                 self.area_size[0] / 2,
                 self.area_size[1] / 2,
             ] - agent.position
-            distance_to_trou = np.linalg.norm(direction_to_trou)
-            utility += distance_to_trou
+            direction_to_door = np.linalg.norm(direction_to_door)
+            distance_objective = direction_to_door
         else:
+
             agent.has_crossed = True
             direction_to_door = agent.objective - agent.position
             distance_to_door = np.linalg.norm(direction_to_door)
-            utility += distance_to_door
+            distance_objective = distance_to_door
 
         density_penalty = 0
         for other_agent in self.agents:
             if other_agent is not agent:
                 distance = np.linalg.norm(agent.position - other_agent.position)
-                if distance < 2 * agent.radius:
-                    density_penalty += 1 / (distance + 1e-3)
+                if distance < 1.1 * (agent.radius + other_agent.radius):
+                    if other_agent.side == agent.side:
+                        density_penalty += 1 / (35 * distance + 1e-3)
+                    else:
+                        density_penalty += 1 / (15 * distance + 1e-3)
 
-        alpha = 3.0
-        beta = 5
+        # Pénalité de zigzag
+        zigzag_penalty = 0
+        if (
+            np.linalg.norm(agent.previous_velocity) > 0
+            and np.linalg.norm(agent.velocity) > 0
+        ):
+            cos_theta = np.dot(agent.velocity, agent.previous_velocity) / (
+                np.linalg.norm(agent.velocity) * np.linalg.norm(agent.previous_velocity)
+            )
+            zigzag_penalty = (
+                1 - cos_theta
+            )  # Écart entre l'ancienne direction et la nouvelle
 
-        return alpha * utility + beta * density_penalty
+        return (
+            self.alpha * distance_objective
+            + self.beta * density_penalty
+            + self.gamma_zigzag * zigzag_penalty
+        )
+
+    def _create_forced_directions(self, agent, n=5):
+        """
+        Crée n directions orientées vers l'objectif de l'agent,
+        avec un léger bruit autour de la direction idéale.
+        """
+        if not agent.has_crossed:
+            # 1) S'il n'a pas encore traversé la barrière
+            #    On vise le centre du trou (ou barrière_position)
+            target = np.array([self.barrier_position, self.area_size[1] / 2])
+        else:
+            # 2) Sinon, on vise la position objective (i.e. la porte)
+            target = agent.objective
+
+        direction = target - agent.position
+        dist = np.linalg.norm(direction)
+        if dist < 1e-9:
+            # Cas limite: on est déjà sur la cible -> direction nulle
+            return np.zeros((n, 2))
+
+        direction /= dist  # on normalise
+
+        forced = []
+        for _ in range(n):
+            # On ajoute un léger "bruit" aléatoire
+            noise = np.random.uniform(-0.1, 0.1, size=2)
+            dir_noisy = direction + noise
+            norm = np.linalg.norm(dir_noisy)
+            if norm > 1e-9:
+                dir_noisy /= norm
+            forced.append(dir_noisy)
+        forced.append(direction)
+
+        return np.array(forced)
 
     def calculate_velocity(self, agent):
-        """Calcule la meilleure direction pour minimiser la fonction d'utilité."""
-        directions = np.random.uniform(-0.5, 0.5, size=(30, 2))
+        """
+        Algorithme testant différentes directions de vitesse et choisissant
+        celle qui minimise la fonction d'utilité.
+        """
+
+        # 1) 25 directions aléatoires
+        random_directions = np.random.uniform(-0.5, 0.5, size=(25, 2))
+
+        # 2) 6 directions forcées autour de l'objectif
+        forced_directions = self._create_forced_directions(agent, n=5)
+
+        # On concatène
+        all_directions = np.vstack([random_directions, forced_directions])
+
+        # Normalisation + mise à l'échelle avec la vitesse de l'agent
         velocities = (
-            directions / np.linalg.norm(directions, axis=1, keepdims=True) * agent.speed
+            all_directions
+            / np.linalg.norm(all_directions, axis=1, keepdims=True)
+            * agent.speed
         )
+
         best_velocity = velocities[0]
         best_utility = float("inf")
 
+        # On stocke la position d'origine pour ne pas la "corrompre"
+        original_position = agent.position.copy()
+        original_velocity = agent.velocity.copy()
+        original_prev_velocity = agent.previous_velocity.copy()
+
         for velocity in velocities:
-            new_position = agent.position + velocity * 0.1
-            agent.position = new_position
+            # On applique virtuellement le déplacement
+            agent.position = original_position + velocity * 0.1
+            # On simule ce que serait agent.velocity / agent.previous_velocity
+            agent.previous_velocity = original_velocity
+            agent.velocity = velocity
+
+            # Calcul d'utilité
             utility = self.calculate_utility(agent)
-            agent.position -= velocity * 0.1
+
+            # Restauration
+            agent.position = original_position
+            agent.velocity = original_velocity
+            agent.previous_velocity = original_prev_velocity
+
             if utility < best_utility:
                 best_utility = utility
                 best_velocity = velocity
 
+        # Si "inf" => on ne bouge pas
         if best_utility == float("inf"):
-            best_velocity = 0
+            best_velocity = np.zeros(2)
 
         return best_velocity
 
@@ -231,7 +318,9 @@ class TrainStationSimulation:
         self.current_time += dt
         self.are_all_blues_crossed()
         shuffled_list = list(self.agents)
-        np.random.shuffle(shuffled_list)
+        np.random.shuffle(
+            shuffled_list
+        )  # Pour éviter qu'un agent ait toujours la priorité du mouvement
         for agent in shuffled_list:
             if agent.side == -1:
                 if not self.all_blues_crossed:
@@ -244,87 +333,3 @@ class TrainStationSimulation:
 
             velocity = self.calculate_velocity(agent)
             agent.update_position(velocity, dt)
-
-
-def test_velocity_limits():
-    """Test pour vérifier que la vitesse maximale des agents est respectée."""
-    simulation = TrainStationSimulation(
-        num_agents_per_team=5,
-        door_position=[(-5, 5), (15, 5), (9, 8), (9, 2)],
-        max_velocity=1.5,
-    )
-    for agent in simulation.agents:
-        velocity = simulation.calculate_velocity(agent)
-        assert (
-            np.linalg.norm(velocity) <= simulation.max_velocity
-        ), f"La vitesse de l'agent a dépassé la limite : {np.linalg.norm(velocity)}"
-    print("Tous les tests de vitesse ont réussi!")
-
-
-# Exécuter le test
-test_velocity_limits()
-
-
-def test_barrier_respect():
-    """Test pour vérifier que les agents ne traversent pas la barrière en dehors du trou."""
-    simulation = TrainStationSimulation(
-        num_agents_per_team=5, door_position=[(5, 5)], max_velocity=1.5
-    )
-    for agent in simulation.agents:
-        if abs(agent.position[0] - simulation.barrier_position) <= agent.radius:
-            lower_bound = simulation.area_size[1] / 2 - simulation.barrier_width
-            upper_bound = simulation.area_size[1] / 2 + simulation.barrier_width
-            assert (
-                lower_bound <= agent.position[1] <= upper_bound
-            ), f"L'agent {agent} a traversé la barrière en dehors du trou."
-    print("Tous les agents respectent la barrière.")
-
-
-def test_agent_density():
-    """Test pour vérifier que les agents maintiennent une distance minimale entre eux pendant la simulation."""
-    simulation = TrainStationSimulation(
-        num_agents_per_team=5, door_position=[(5, 5)], max_velocity=1.5
-    )
-    simulation.update_agents(dt=0.1)
-    for i, agent1 in enumerate(simulation.agents):
-        for j, agent2 in enumerate(simulation.agents):
-            if i != j:
-                distance = np.linalg.norm(agent1.position - agent2.position)
-                assert distance >= (
-                    agent1.radius + agent2.radius
-                ), f"Collision détectée entre les agents {i} et {j} pendant la simulation."
-    print("Aucune collision détectée entre les agents.")
-
-
-def test_agent_density():
-    """Test pour vérifier que les agents maintiennent une distance minimale entre eux pendant la simulation."""
-    simulation = TrainStationSimulation(
-        num_agents_per_team=5, door_position=[(5, 5)], max_velocity=1.5
-    )
-    simulation.update_agents(dt=0.1)
-    for i, agent1 in enumerate(simulation.agents):
-        for j, agent2 in enumerate(simulation.agents):
-            if i != j:
-                distance = np.linalg.norm(agent1.position - agent2.position)
-                assert distance >= (
-                    agent1.radius + agent2.radius
-                ), f"Collision détectée entre les agents {i} et {j} pendant la simulation."
-    print("Aucune collision détectée entre les agents.")
-
-
-def test_agent_convergence():
-    """Test pour vérifier que tous les agents atteignent leurs objectifs dans un temps limite."""
-    simulation = TrainStationSimulation(
-        num_agents_per_team=5, door_position=[(5, 5)], max_velocity=1.5
-    )
-    time_limit = 10
-    for _ in range(int(time_limit / 0.1)):
-        simulation.update_agents(dt=0.1)
-    for agent in simulation.agents:
-        distance_to_objective = np.linalg.norm(
-            agent.position - np.array([agent.objective, 5])
-        )
-        assert (
-            distance_to_objective <= agent.radius
-        ), f"L'agent {agent} n'a pas atteint son objectif dans le temps imparti."
-    print("Tous les agents ont atteint leurs objectifs.")

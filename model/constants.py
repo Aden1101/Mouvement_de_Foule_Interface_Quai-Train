@@ -1,9 +1,6 @@
-# Screen dimensions
+# Dimension de la fenêtre
 SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 
-# Colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
-LIGHT_BACKGROUND = (230, 230, 230)
-BUTTON_TEXT_COLOR = WHITE
+# Couleurs prédéfinis
+LIGHT_BACKGROUND = (240, 240, 240)  # Couleur arrière plan

@@ -1,8 +1,11 @@
 import pygame
+import numpy as np
 import pygame_gui
 import matplotlib.pyplot as plt
-import pandas as pd
-from multiprocessing import Process
+import pandas as pd  # Manipulation de données
+from multiprocessing import (
+    Process,
+)  # Nécessaire pour le multiprocessing entre Matplotlib et Pygame
 from model.constants import SCREEN_WIDTH, SCREEN_HEIGHT, LIGHT_BACKGROUND
 from tkinter import Tk, filedialog
 
@@ -10,18 +13,20 @@ from tkinter import Tk, filedialog
 class CSVAnalysisView:
     def __init__(self, screen):
         self.screen = screen
-        self.manager = pygame_gui.UIManager((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.manager = pygame_gui.UIManager(
+            (SCREEN_WIDTH, SCREEN_HEIGHT)
+        )  # Création du "manager" UI
 
-        # Dimensions pour les champs et boutons
+        # Dimensions (relatives) pour les champs et boutons
         button_width = SCREEN_WIDTH * 0.3
         button_height = SCREEN_HEIGHT * 0.07
-        x_center = (SCREEN_WIDTH - button_width) / 2
+        x_center = (SCREEN_WIDTH - button_width) / 2  # Pour pouvoir centrer les boutons
 
-        # Titre
+        # Création du titre
         self.title_font = pygame.font.Font(None, int(SCREEN_HEIGHT * 0.08))
         self.title_text = "Analyse des Simulations"
 
-        # Boutons
+        # Création des boutons
         self.load_csv_button = pygame_gui.elements.UIButton(
             relative_rect=pygame.Rect(
                 (x_center, SCREEN_HEIGHT * 0.4), (button_width, button_height)
@@ -59,7 +64,7 @@ class CSVAnalysisView:
     def update(self, time_delta):
         self.screen.fill(LIGHT_BACKGROUND)
 
-        # Dessiner le titre
+        # Afficher le titre
         title_surface = self.title_font.render(self.title_text, True, (0, 0, 0))
         title_rect = title_surface.get_rect(
             center=(SCREEN_WIDTH / 2, SCREEN_HEIGHT * 0.2)
@@ -67,11 +72,10 @@ class CSVAnalysisView:
         self.screen.blit(title_surface, title_rect)
 
         self.manager.update(time_delta)
-        self.manager.draw_ui(self.screen)
-        pygame.display.flip()
+        self.manager.draw_ui(self.screen)  # Afficher les boutons
+        pygame.display.flip()  # Actualisation de l'affichage
 
     def handle_events(self, event):
-        """Gérer les événements de la vue CSV."""
         if event.type == pygame.USEREVENT:
             if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
                 if event.ui_element == self.load_csv_button:
@@ -85,15 +89,16 @@ class CSVAnalysisView:
         return "csv_analysis"
 
     def load_csv_file(self):
-        """Ouvre un dialogue pour charger un fichier CSV et le charge dans un DataFrame."""
-        Tk().withdraw()
+        Tk().withdraw()  # Cacher la fenêtre principale
         file_path = filedialog.askopenfilename(
             title="Charger un Fichier CSV", filetypes=[("CSV Files", "*.csv")]
         )
         if file_path:
             try:
                 self.file_path = file_path
-                self.dataframe = pd.read_csv(file_path)
+                self.dataframe = pd.read_csv(
+                    file_path
+                )  # Stocker le fichier csv dans un dataframe
                 print("Fichier chargé avec succès :", file_path)
                 print(self.dataframe.head())
             except Exception as e:
@@ -126,7 +131,7 @@ class CSVAnalysisView:
     def show_graphs_process(dataframe):
         """Affiche des graphiques montrant la moyenne et la variance du temps par nombre d'agents."""
         try:
-            import numpy as np  # Import explicite pour le multiprocessing
+            # Import explicite pour le multiprocessing
 
             # Vérifier les colonnes nécessaires
             if "Nb_agents" in dataframe.columns and "Final_time" in dataframe.columns:
@@ -176,23 +181,41 @@ class CSVAnalysisView:
 
     @staticmethod
     def clean_data_process(dataframe, file_path):
-        """Nettoie les données en supprimant les simulations incohérentes."""
         try:
             if "Final_time" not in dataframe.columns:
                 print("Erreur : La colonne 'Final_time' est absente des données.")
                 return
 
-            mean_time = dataframe["Final_time"].mean()
-            std_time = dataframe["Final_time"].std()
-            threshold = 3  # Seuil d'écart-type
-
-            dataframe["Outlier"] = abs(dataframe["Final_time"] - mean_time) > (
-                threshold * std_time
+            # Calculer la moyenne et l'écart-type pour chaque groupe
+            grouped = (
+                dataframe.groupby("Nb_agents")["Final_time"]
+                .agg(["mean", "std"])
+                .reset_index()
             )
-            outliers = dataframe[dataframe["Outlier"]]
-            print(f"Simulations incohérentes détectées :\n{outliers}")
 
-            cleaned_data = dataframe[~dataframe["Outlier"]].drop(columns=["Outlier"])
+            # Détecter et retirer les outliers pour chaque groupe
+            cleaned_data = pd.DataFrame()
+            for index, row in grouped.iterrows():
+                nb_agents = row["Nb_agents"]
+                mean_time = row["mean"]
+                std_time = row["std"]
+                threshold = 5  # Seuil
+
+                group_data = dataframe[dataframe["Nb_agents"] == nb_agents]
+                group_data["Outlier"] = abs(group_data["Final_time"] - mean_time) > (
+                    threshold * std_time
+                )
+                outliers = group_data[group_data["Outlier"]]
+                print(
+                    f"Simulations incohérentes détectées pour {nb_agents} agents :\n{outliers}"
+                )
+
+                cleaned_group = group_data[~group_data["Outlier"]].drop(
+                    columns=["Outlier"]
+                )
+                cleaned_data = pd.concat([cleaned_data, cleaned_group])
+
+            # Sauvegarder les données nettoyées
             cleaned_file_path = f"cleaned_{file_path.split('/')[-1]}"
             cleaned_data.to_csv(cleaned_file_path, index=False)
             print(f"Données nettoyées sauvegardées dans {cleaned_file_path}")

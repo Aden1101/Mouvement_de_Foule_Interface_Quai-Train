@@ -1,31 +1,30 @@
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from model.Simulation import Agent, TrainStationSimulation
+from model.Simulation import TrainStationSimulation
 from matplotlib.animation import FuncAnimation
 import csv
 import os
 
 
-# Largeur du trou dans la barrière
 def run_simulation(
     simul,
     shared_data,
-    steps=100,
-    dt=0.02,
-    time_limit=40,  # Temps limite en secondes
+    steps=6000,
+    dt=0.05,
+    time_limit=400,
 ):
     """
     Effectue la simulation et retourne les temps nécessaires pour chaque équipe.
     Si la simulation dépasse le temps limite, elle s'arrête.
     """
     positions = []
-    blue_cross_time = None
-    red_cross_time = None
-    time = 0
+    blue_cross_time = None  # Temps de descente
+    red_cross_time = None  # Temps de montée
+    time = 0  # Temps total final
 
     for step in range(steps):
-        simul.update_agents(dt)
+        simul.update_agents(
+            dt
+        )  # Réalise les actions nécessaire à chaque dt pour chaque agent
         time += dt
         positions.append([agent.position.copy() for agent in simul.agents])
 
@@ -55,16 +54,17 @@ def run_simulation(
 
 def save_simulation_to_csv(file_name, results):
     """
-    Saves the results of a simulation to a CSV file.
-    Appends to the file if it already exists; creates a new file if it does not.
+    Sauvegarde les données de la simulation dans un fichier CSV.
+    Ajoute au fichier déjà existant s'il existe;
+    En crée un nouveau sinon.
 
     Args:
-        file_name (str): Name of the CSV file.
-        results (list of dict): List of simulation results.
+        file_name (str): Nom du fichier CSV.
+        results (list of dict): La liste des données de la simulation.
     """
-    file_exists = os.path.exists(file_name)  # Check if the file already exists
-    mode = "a" if file_exists else "w"  # Append if file exists, write otherwise
-    header = not file_exists  # Write header if file does not exist
+    file_exists = os.path.exists(file_name)  # On vérifie si le fichier existe
+    mode = "a" if file_exists else "w"  # a : ajoute, w : crée
+    header = not file_exists  # On crée un header si le fichier n'existe pas
 
     with open(file_name, mode=mode, newline="") as file:
         writer = csv.DictWriter(
@@ -72,6 +72,7 @@ def save_simulation_to_csv(file_name, results):
             fieldnames=[
                 "Simulation",
                 "Nb_agents",
+                "Gamma",
                 "Alpha",
                 "Beta",
                 "Blue_time",
@@ -80,12 +81,13 @@ def save_simulation_to_csv(file_name, results):
             ],
         )
         if header:
-            writer.writeheader()
+            writer.writeheader()  # Le header structure les différentes colonnes
         writer.writerows(results)
 
 
 # Visualisation
 def animate_simulation(simulation, positions, interval=100):
+    # Barrière et Limites :
     fig, ax = plt.subplots(figsize=(8, 8))
     ax.set_xlim(2, simulation.area_size[0] - 2)
     ax.set_ylim(2, simulation.area_size[1] - 2)
@@ -128,31 +130,38 @@ def launch_simulation(
     shared_data,
     alpha,
     beta,
+    gamma_zigzag=0.01,
     save_file=None,
     sim_number=1,
     show_animation=True,
-    time_limit=40,  # Temps limite par défaut
+    time_limit=400,
 ):
     if "results" not in shared_data:
         shared_data["results"] = []
 
     simul = TrainStationSimulation(
         nbr_agent,
-        door_position=[(-5, 5), (15, 5), (9, 8), (9, 2)],
+        door_position=[
+            (-5, 5),
+            (15, 5),
+            (9, 8),
+            (9, 2),
+        ],  # Choix des différents objectifs finaux
         max_time=20,
         alpha_value=alpha,
         beta_value=beta,
-    )
+        gamma_zigzag=gamma_zigzag,
+    )  # On crée une instance simulation
 
-    # Exécuter la simulation avec une limite de temps
+    # Exécute la simulation
     blue_time, red_time, positions = run_simulation(
-        simul, shared_data, steps=500, dt=0.05, time_limit=time_limit
+        simul, shared_data, steps=20000, dt=0.05, time_limit=time_limit
     )
     print(
         f"Simulation {sim_number}: Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
     )
 
-    # Ajouter les résultats, en tenant compte du temps limite
+    # Ajoute les résultats
     results = shared_data["results"]
     results.append(
         {
@@ -160,6 +169,7 @@ def launch_simulation(
             "Nb_agents": nbr_agent,
             "Alpha": alpha,
             "Beta": beta,
+            "Gamma": gamma_zigzag,
             "Blue_time": blue_time,
             "Red_time": red_time,
             "Final_time": (
