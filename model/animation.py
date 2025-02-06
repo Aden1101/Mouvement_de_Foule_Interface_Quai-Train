@@ -10,7 +10,7 @@ def run_simulation(
     shared_data,
     steps=6000,
     dt=0.05,
-    time_limit=400,
+    time_limit=2000,
 ):
     """
     Effectue la simulation et retourne les temps nécessaires pour chaque équipe.
@@ -134,7 +134,7 @@ def launch_simulation(
     save_file=None,
     sim_number=1,
     show_animation=True,
-    time_limit=400,
+    time_limit=2000,
 ):
     if "results" not in shared_data:
         shared_data["results"] = []
@@ -155,7 +155,7 @@ def launch_simulation(
 
     # Exécute la simulation
     blue_time, red_time, positions = run_simulation(
-        simul, shared_data, steps=20000, dt=0.05, time_limit=time_limit
+        simul, shared_data, steps=30000, dt=0.05, time_limit=time_limit
     )
     print(
         f"Simulation {sim_number}: Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"

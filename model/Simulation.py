@@ -64,12 +64,20 @@ class TrainStationSimulation:
     def _initialize_agents(self):
         """Initialise deux équipes d'agents tout en évitant les chevauchements initiaux."""
         agents = []
+
+        if self.num_agents_per_team >= 30:
+            y_min_factor = 1 / 4  # Étendu (plus bas)
+            y_max_factor = 3 / 4  # Étendu (plus haut)
+        else:
+            y_min_factor = 1 / 3  # Normal (tiers)
+            y_max_factor = 2 / 3
+
         for i in range(self.num_agents_per_team):
             # Équipe 1 : Descendent (à droite de la porte)
             while True:
                 position = np.random.uniform(
-                    [self.area_size[0] / 2 + 0.15, self.area_size[1] / 3],
-                    [2 * self.area_size[0] / 3, 2 * self.area_size[1] / 3],
+                    [self.area_size[0] / 2 + 0.15, self.area_size[1] * y_min_factor],
+                    [2 * self.area_size[0] / 3, self.area_size[1] * y_max_factor],
                 )
                 radius = np.random.uniform(0.1, 0.15)
                 if not any(
@@ -87,12 +95,12 @@ class TrainStationSimulation:
                     # Zone en haut
                     y_range = np.random.uniform(
                         self.area_size[1] / 2 + self.barrier_width + 0.15,
-                        2 * self.area_size[1] / 3,
+                        self.area_size[1] * y_max_factor,
                     )
                 else:
                     # Zone en bas
                     y_range = np.random.uniform(
-                        self.area_size[1] / 3,
+                        self.area_size[1] * y_min_factor,
                         self.area_size[1] / 2 - self.barrier_width - 0.15,
                     )
                 x_range = np.random.uniform(

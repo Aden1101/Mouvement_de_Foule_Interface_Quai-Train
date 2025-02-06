@@ -131,7 +131,7 @@ class SimulationView:
             ),
             manager=self.manager,
         )
-        self.time_limit_input.set_text("400")
+        self.time_limit_input.set_text("2000")
 
         # Nombre d'agents par équipe :
         self.num_agents_label = pygame_gui.elements.UILabel(
@@ -167,8 +167,8 @@ class SimulationView:
                 (self.col1_x, row4_y + self.label_height),
                 (self.col_width - 50, self.input_height),
             ),
-            start_value=5,
-            value_range=(1, 40),
+            start_value=10,
+            value_range=(1, 50),
             manager=self.manager,
         )
         self.min_agents_value_label = pygame_gui.elements.UILabel(
@@ -193,8 +193,8 @@ class SimulationView:
                 (self.col2_x, row4_y + self.label_height),
                 (self.col_width - 50, self.input_height),
             ),
-            start_value=45,
-            value_range=(40, 60),
+            start_value=40,
+            value_range=(30, 60),
             manager=self.manager,
         )
         self.max_agents_value_label = pygame_gui.elements.UILabel(
@@ -326,6 +326,8 @@ class SimulationView:
                     # Récupération min / max depuis les sliders
                     min_agents = int(self.min_agents_slider.get_current_value())
                     max_agents = int(self.max_agents_slider.get_current_value())
+                    if min_agents > max_agents:
+                        min_agents, max_agents = max_agents, min_agents
                     if min_agents > max_agents:  # En cas de problème
                         min_agents, max_agents = max_agents, min_agents
 
