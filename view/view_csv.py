@@ -181,62 +181,41 @@ class CSVAnalysisView:
 
     @staticmethod
     def clean_data_process(dataframe, file_path):
-        """
-        Nettoie les données :
-          - Retire les lignes où 'Nb_agents' > 55.
-          - Pour chaque groupe de 'Nb_agents' (<= 55),
-            détecte et retire les outliers basés sur la colonne 'Final_time'.
-        """
         try:
             if "Final_time" not in dataframe.columns:
                 print("Erreur : La colonne 'Final_time' est absente des données.")
                 return
 
-            # 1) Supprimer les simulations où Nb_agents > 55
-            if "Nb_agents" in dataframe.columns:
-                initial_count = len(dataframe)
-                dataframe = dataframe[dataframe["Nb_agents"] <= 55]
-                removed_count = initial_count - len(dataframe)
-                if removed_count > 0:
-                    print(f"{removed_count} lignes supprimées (Nb_agents > 55).")
-
-            # 2) Calculer la moyenne et l'écart-type pour chaque groupe
+            # Calculer la moyenne et l'écart-type pour chaque groupe
             grouped = (
                 dataframe.groupby("Nb_agents")["Final_time"]
                 .agg(["mean", "std"])
                 .reset_index()
             )
 
-            # 3) Détecter et retirer les outliers pour chaque groupe
+            # Détecter et retirer les outliers pour chaque groupe
             cleaned_data = pd.DataFrame()
             for index, row in grouped.iterrows():
                 nb_agents = row["Nb_agents"]
                 mean_time = row["mean"]
                 std_time = row["std"]
-                threshold = 100  # Seuil pour détecter un outlier
+                threshold = 5  # Seuil
 
-                group_data = dataframe[dataframe["Nb_agents"] == nb_agents].copy()
-
-                # On marque comme outlier toute valeur de Final_time
-                # trop éloignée de la moyenne (ex. > 5 sigma).
+                group_data = dataframe[dataframe["Nb_agents"] == nb_agents]
                 group_data["Outlier"] = abs(group_data["Final_time"] - mean_time) > (
                     threshold * std_time
                 )
-
-                # Afficher les éventuels outliers
                 outliers = group_data[group_data["Outlier"]]
-                if not outliers.empty:
-                    print(
-                        f"Simulations incohérentes détectées pour {nb_agents} agents :\n{outliers}"
-                    )
+                print(
+                    f"Simulations incohérentes détectées pour {nb_agents} agents :\n{outliers}"
+                )
 
-                # On ne conserve que les données non-outliers
                 cleaned_group = group_data[~group_data["Outlier"]].drop(
                     columns=["Outlier"]
                 )
                 cleaned_data = pd.concat([cleaned_data, cleaned_group])
 
-            # 4) Sauvegarder les données nettoyées
+            # Sauvegarder les données nettoyées
             cleaned_file_path = f"cleaned_{file_path.split('/')[-1]}"
             cleaned_data.to_csv(cleaned_file_path, index=False)
             print(f"Données nettoyées sauvegardées dans {cleaned_file_path}")
