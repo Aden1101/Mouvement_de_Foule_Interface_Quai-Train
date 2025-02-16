@@ -194,7 +194,7 @@ class SimulationView:
                 (self.col_width - 50, self.input_height),
             ),
             start_value=40,
-            value_range=(30, 60),
+            value_range=(30, 55),
             manager=self.manager,
         )
         self.max_agents_value_label = pygame_gui.elements.UILabel(

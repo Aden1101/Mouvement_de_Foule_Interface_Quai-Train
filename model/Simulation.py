@@ -65,7 +65,7 @@ class TrainStationSimulation:
         """Initialise deux équipes d'agents tout en évitant les chevauchements initiaux."""
         agents = []
 
-        if self.num_agents_per_team >= 30:
+        if self.num_agents_per_team >= 55:
             y_min_factor = 1 / 4  # Étendu (plus bas)
             y_max_factor = 3 / 4  # Étendu (plus haut)
         else:
