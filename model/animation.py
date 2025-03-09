@@ -8,9 +8,9 @@ import os
 def run_simulation(
     simul,
     shared_data,
-    steps=6000,
+    steps=2000,
     dt=0.05,
-    time_limit=2000,
+    time_limit=1000,
 ):
     """
     Effectue la simulation et retourne les temps nécessaires pour chaque équipe.
@@ -27,6 +27,7 @@ def run_simulation(
         )  # Réalise les actions nécessaire à chaque dt pour chaque agent
         time += dt
         positions.append([agent.position.copy() for agent in simul.agents])
+        
 
         if blue_cross_time is None and simul.all_blues_crossed:
             blue_cross_time = step * dt
@@ -88,9 +89,12 @@ def save_simulation_to_csv(file_name, results):
 # Visualisation
 def animate_simulation(simulation, positions, interval=100):
     # Barrière et Limites :
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_xlim(2, simulation.area_size[0] - 2)
-    ax.set_ylim(2, simulation.area_size[1] - 2)
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.set_xlim(0, simulation.area_size[0])
+    ax.set_ylim(0, simulation.area_size[1])
+
+    ax.set_aspect('equal', adjustable='box')
+
 
     # Dessiner les agents initialement
     circles = [agent.draw(ax) for agent in simulation.agents]
@@ -141,12 +145,6 @@ def launch_simulation(
 
     simul = TrainStationSimulation(
         nbr_agent,
-        door_position=[
-            (-5, 5),
-            (15, 5),
-            (9, 8),
-            (9, 2),
-        ],  # Choix des différents objectifs finaux
         max_time=20,
         alpha_value=alpha,
         beta_value=beta,

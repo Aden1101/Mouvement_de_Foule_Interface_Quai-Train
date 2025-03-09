@@ -14,7 +14,7 @@ class Agent:
     ):
         self.position = np.array(position, dtype=float)
         self.side = side  # 1 pour ceux qui descendent, -1 pour ceux qui montent
-        self.radius = np.random.uniform(0.1, 0.15)  # Taille qui varie
+        self.radius = np.random.uniform(0.1, 0.14)  # Taille qui varie
         self.speed = speed
         self.color = color
         self.politeness = politeness  # Paramètre de politesse (0 : impoli, 1 : poli)
@@ -36,24 +36,28 @@ class Agent:
 
 class TrainStationSimulation:
     def __init__(
-        self,
-        num_agents_per_team,
-        door_position,
-        area_size=(10, 10),
-        max_time=15,
-        barrier_width=0.4,
-        alpha_value=5.0,
-        beta_value=2.0,
-        max_velocity=1.5,
-        gamma_zigzag=0.005,
+    self,
+    num_agents_per_team,
+    door_position = [(-5, 2.5)],  # Position objectif sortant
+    area_size=(4, 5),       # Taille de la zone
+    max_time=20,
+    barrier_width=0.35,      #  barrière un peu plus fine
+    alpha_value=5.0,
+    beta_value=2.0,
+    max_velocity=1.5,
+    gamma_zigzag=0.005,
+    custom_barrier_position=3,  # (3) nouveau param
     ):
+        self.area_size = area_size
+        if custom_barrier_position is not None:
+            self.barrier_position = custom_barrier_position
+        else:
+            self.barrier_position = self.area_size[0] / 2 # Barrière verticale au centre
         self.alpha = alpha_value  # Poids pour l'objectif
         self.beta = beta_value  # Pénalité de densité
         self.gamma_zigzag = gamma_zigzag  # Pénalité de changement de direction
         self.num_agents_per_team = num_agents_per_team
         self.door_position = np.array(door_position, dtype=float)
-        self.area_size = area_size
-        self.barrier_position = self.area_size[0] / 2  # Barrière verticale au centre
         self.barrier_width = barrier_width
         self.agents = self._initialize_agents()
         self.max_time = max_time  # Temps relatif pour la politesse
@@ -64,50 +68,86 @@ class TrainStationSimulation:
     def _initialize_agents(self):
         """Initialise deux équipes d'agents tout en évitant les chevauchements initiaux."""
         agents = []
+        agents.append(Agent(position=[self.barrier_position + 0.4, self.area_size[1] / 2], color="green", side=2, objective=[self.barrier_position + 0.4, self.area_size[1] / 2]))
 
-        if self.num_agents_per_team >= 55:
-            y_min_factor = 1 / 4  # Étendu (plus bas)
-            y_max_factor = 3 / 4  # Étendu (plus haut)
-        else:
-            y_min_factor = 1 / 3  # Normal (tiers)
-            y_max_factor = 2 / 3
+        y_min_factor = 1 / 4  # Étendu (plus bas)
+        y_max_factor = 3 / 4  # Étendu (plus haut)
+
 
         for i in range(self.num_agents_per_team):
-            # Équipe 1 : Descendent (à droite de la porte)
+            # Décision 10% verts statiques, 90% bleus
+            is_static = (np.random.rand() < 0.15)
+
+            # Rayon tiré aléatoirement
+            radius = np.random.uniform(0.1, 0.14)
+
+            # On boucle jusqu’à trouver une position valide (sans chevauchement)
             while True:
-                position = np.random.uniform(
-                    [self.area_size[0] / 2 + 0.15, self.area_size[1] * y_min_factor],
-                    [2 * self.area_size[0] / 3, self.area_size[1] * y_max_factor],
-                )
-                radius = np.random.uniform(0.1, 0.15)
+                # 1) Intervalle X : [barrier_position + 0.14, area_size[0] - 0.14]
+                x_min = self.barrier_position + 0.14
+                x_max = self.area_size[0] - 0.14
+                x_val = np.random.uniform(x_min, x_max)
+
+                # 2) Intervalle Y : [0.14, area_size[1] - 0.14]
+                y_min = 0.14
+                y_max = self.area_size[1] - 0.14
+
+                if is_static:
+                    # (10%) : agent vert statique => Y tiré selon Beta(0.5, 0.5)
+                    u = np.random.beta(0.5, 0.5)  # distribution en "U"
+                    y_val = y_min + (y_max - y_min) * u
+                else:
+                    # (90%) : agent bleu => Y complètement uniforme
+                    y_val = np.random.uniform(y_min, y_max)
+
+                position = np.array([x_val, y_val])
+
+                # Test de collision
                 if not any(
                     np.linalg.norm(position - other.position) < (radius + other.radius)
                     for other in agents
                 ):
+                    # => OK, on peut sortir de la boucle
                     break
-            agents.append(
-                Agent(position, "blue", side=1, objective=self.door_position[0])
-            )
 
+            # Une fois la position validée, on crée l’agent
+            if is_static:
+                spawned_agent = Agent(
+                    position=position,
+                    color="green",
+                    side=2,           # vert statique
+                    objective=position,  # ne bouge pas
+                )
+            else:
+                spawned_agent = Agent(
+                    position=position,
+                    color="blue",
+                    side=1,           # bleu
+                    objective=self.door_position[0],  # ex : la 1ère porte
+                )
+
+            agents.append(spawned_agent)
+     
+        for i in range(int(1.5*self.num_agents_per_team)):
             # Équipe 2 : Montent (à gauche de la porte)
             while True:
                 if np.random.rand() < 0.5:
                     # Zone en haut
                     y_range = np.random.uniform(
-                        self.area_size[1] / 2 + self.barrier_width + 0.15,
+                        self.area_size[1] / 2 + self.barrier_width + 0.14,
                         self.area_size[1] * y_max_factor,
                     )
                 else:
                     # Zone en bas
                     y_range = np.random.uniform(
                         self.area_size[1] * y_min_factor,
-                        self.area_size[1] / 2 - self.barrier_width - 0.15,
+                        self.area_size[1] / 2 - self.barrier_width - 0.14,
                     )
                 x_range = np.random.uniform(
-                    self.area_size[0] / 3, self.area_size[0] / 2 - 0.15
+                    2*self.barrier_position / 3, self.barrier_position - 0.14
                 )
                 position = np.array([x_range, y_range])
-                radius = np.random.uniform(0.1, 0.15)
+                radius = np.random.uniform(0.1, 0.14)
                 if not any(
                     np.linalg.norm(position - other.position) < (radius + other.radius)
                     for other in agents
@@ -116,19 +156,38 @@ class TrainStationSimulation:
             politeness = np.clip(
                 np.random.lognormal(mean=0, sigma=0.5), 0, 1
             )  # Niveau de politesse biaisé vers 1 (poli)
-            door_idx = np.random.randint(
-                1, len(self.door_position)
-            )  # Objectifs aléatoires
+
+            # On génère l'objectif de manière aléatoire
+            margin = 0.2
+
+            # 1) X : un uniforme sur [barrier_position + 0.2, area_size[0] - 0.2]
+            x_min = self.barrier_position + margin
+            x_max = self.area_size[0] - margin
+            objective_x = np.random.uniform(x_min, x_max)
+
+            # 2) Y biaisé : Beta(0.5, 0.5) => plus de chances vers 0 ou 1 qu'au centre
+            # On interpole ensuite entre [margin, area_size[1] - margin]
+            u = np.random.beta(0.5, 0.5)
+            y_min = margin
+            y_max = self.area_size[1] - margin
+            objective_y = y_min + (y_max - y_min) * u
+
+            if (objective_y < self.area_size[1] / 2 + 0.4 and objective_y > self.area_size[1] / 2 - 0.4):
+                if (objective_x < self.area_size[0] - 0.7):
+                    objective_x = objective_x + 0.5
+
+            objective = (objective_x, objective_y)
+
             agents.append(
                 Agent(
                     position,
                     "red",
                     side=-1,
                     politeness=politeness,
-                    objective=self.door_position[door_idx],
+                    objective=objective,
                 )
             )
-
+        print("Les agents ont tous leur positions")
         return agents
 
     def are_all_blues_crossed(self):
@@ -147,90 +206,48 @@ class TrainStationSimulation:
         return True
 
     def calculate_utility(self, agent):
-        """Calcule la fonction d'utilité pour un agent."""
+        """
+        Calcule la fonction d'utilité en combinant:
+        - distance_penalty
+        - density_penalty
+        - zigzag_penalty
+        
+        Retourne "inf" si l'agent est dans une situation impossible (collision barrière, collision agent).
+        """
 
-        # Vérifier si l'agent chevauche la barrière en dehors du trou
-        # Vérifier si l'agent touche ou dépasse la barrière horizontalement
+        # 0) Vérifier si l'agent sort ou touche le bord de area_size
+        x, y = agent.position
+        r = agent.radius
+        # S'il dépasse un des 4 bords:
+        if (x + r > self.area_size[0]) or (y - r < 0) or (y + r > self.area_size[1]):
+            return float("inf")
+        
+        # 0.5) Vérifier si les agents immobiles se font sortir de la zone
+        if agent.side == 2:
+            if (x < self.barrier_position - 0.4):
+                return float("inf")
+        
+        # 1) Vérifier la collision avec la barrière en dehors du trou
         if abs(agent.position[0] - self.barrier_position) <= agent.radius:
             lower_bound = self.area_size[1] / 2 - self.barrier_width
             upper_bound = self.area_size[1] / 2 + self.barrier_width
-
             if not (lower_bound <= agent.position[1] <= upper_bound):
                 return float("inf")
 
-        # Vérifier si l'agent chevauche un autre agent
-
-        distance_objective = 0
-
+        # 2) Vérifier si l'agent chevauche un autre agent
         for other_agent in self.agents:
             if other_agent is not agent:
-                distance = np.linalg.norm(agent.position - other_agent.position)
-                if distance < (agent.radius + other_agent.radius):
+                dist = np.linalg.norm(agent.position - other_agent.position)
+                if dist < (agent.radius + other_agent.radius):
                     return float("inf")
 
-        # Reset l'objective si l'agent se fait repousser
-        if (
-            agent.side == 1
-            and agent.has_crossed
-            and agent.position[0] > self.barrier_position + 0.25
-        ):
-            agent.has_crossed = False
+        # 3) Calculer séparément les trois composantes
+        dist_pen = self.alpha * self.compute_distance(agent)
+        dens_pen = self.compute_density_penalty(agent)
+        zig_pen = self.compute_zigzag_penalty(agent)
 
-        if (
-            agent.side == -1
-            and agent.has_crossed
-            and agent.position[0] < self.barrier_position - 0.25
-        ):
-            agent.has_crossed = False
-
-        if (
-            (not agent.has_crossed)
-            and (agent.side == 1 and agent.position[0] > (self.barrier_position))
-        ) or (
-            (not agent.has_crossed)
-            and (agent.side == -1 and agent.position[0] < (self.barrier_position))
-        ):
-            direction_to_door = [
-                self.area_size[0] / 2,
-                self.area_size[1] / 2,
-            ] - agent.position
-            direction_to_door = np.linalg.norm(direction_to_door)
-            distance_objective = direction_to_door
-        else:
-
-            agent.has_crossed = True
-            direction_to_door = agent.objective - agent.position
-            distance_to_door = np.linalg.norm(direction_to_door)
-            distance_objective = distance_to_door
-
-        density_penalty = 0
-        for other_agent in self.agents:
-            if other_agent is not agent:
-                distance = np.linalg.norm(agent.position - other_agent.position)
-                if distance < 1.1 * (agent.radius + other_agent.radius):
-                    if other_agent.side == agent.side:
-                        density_penalty += 1 / (35 * distance + 1e-3)
-                    else:
-                        density_penalty += 1 / (15 * distance + 1e-3)
-
-        # Pénalité de zigzag
-        zigzag_penalty = 0
-        if (
-            np.linalg.norm(agent.previous_velocity) > 0
-            and np.linalg.norm(agent.velocity) > 0
-        ):
-            cos_theta = np.dot(agent.velocity, agent.previous_velocity) / (
-                np.linalg.norm(agent.velocity) * np.linalg.norm(agent.previous_velocity)
-            )
-            zigzag_penalty = (
-                1 - cos_theta
-            )  # Écart entre l'ancienne direction et la nouvelle
-
-        return (
-            self.alpha * distance_objective
-            + self.beta * density_penalty
-            + self.gamma_zigzag * zigzag_penalty
-        )
+        # 4) Combiner
+        return dist_pen + dens_pen + zig_pen
 
     def _create_forced_directions(self, agent, n=5):
         """
@@ -281,12 +298,15 @@ class TrainStationSimulation:
         # On concatène
         all_directions = np.vstack([random_directions, forced_directions])
 
-        # Normalisation + mise à l'échelle avec la vitesse de l'agent
-        velocities = (
-            all_directions
-            / np.linalg.norm(all_directions, axis=1, keepdims=True)
-            * agent.speed
-        )
+        norms = np.linalg.norm(all_directions, axis=1, keepdims=True)
+
+        # Pour éviter la division par zéro, on met la vitesse à 0 si la norme est nulle.
+        # Par exemple, on considère "zéro" si norme < 1e-9.
+        epsilon = 1e-9
+        velocities = np.zeros_like(all_directions)
+        # On applique la normalisation seulement là où la norme est suffisante
+        valid_indices = (norms > epsilon).reshape(-1)
+        velocities[valid_indices] = (all_directions[valid_indices] / norms[valid_indices]) * agent.speed
 
         best_velocity = velocities[0]
         best_utility = float("inf")
@@ -338,6 +358,95 @@ class TrainStationSimulation:
                         time_factor = self.max_time / 2 * (1 - agent.politeness)
                         if self.current_time < time_factor:
                             continue
+          
+            distance = self.compute_distance(agent)
+            # Si c'est un agent rouge et qu'il est très proche de son objectif
+            if agent.side == -1 and distance < 0.14 and agent.position[0] > self.barrier_position:
+                agent.side = 2
+
+            density_penalty = self.compute_density_penalty(agent)
+
+            if agent.side == 2 and density_penalty < 0.05 and distance < 0.15:
+                continue
 
             velocity = self.calculate_velocity(agent)
             agent.update_position(velocity, dt)
+
+
+    def compute_distance(self, agent):
+        """
+        Calcule la distance entre l'agent et son objectif.
+        """
+        # Si l'agent se fait repousser de l'autre côté alors qu'il a déjà traversé
+        if ((agent.side == -1 and agent.position[0] < (self.barrier_position - 0.2)) or (agent.side == 1 and agent.position[0] > (self.barrier_position + 0.2)) and agent.has_crossed and (agent.position[1] > self.area_size[1] / 2 + 0.4 or agent.position[1] < self.area_size[1] / 2 - 0.4)):
+            agent.has_crossed = False
+
+        # 1) Détermination de "distance_objective"
+        # On vérifie d’abord si l’agent n’a pas encore "traversé" la barrière
+        if (not agent.has_crossed) and (
+            (agent.side == 1 and agent.position[0] > self.barrier_position) or
+            (agent.side == -1 and agent.position[0] < self.barrier_position)
+        ):
+
+            # distance horizontale
+            dx = self.barrier_position - agent.position[0]
+
+            # selon la position de y, on calcule dy :
+            if agent.position[1] < self.area_size[1] / 2 - self.barrier_width / 2:
+                # le point est en dessous
+                dy = self.area_size[1] / 2 - self.barrier_width / 2 - agent.position[1]
+            elif agent.position[1] > self.area_size[1] / 2 + self.barrier_width / 2:
+                # le point est au-dessus
+                dy = self.area_size[1] / 2 + self.barrier_width / 2 - agent.position[1]
+            else:
+                # le point est à hauteur du segment
+                dy = 0
+
+            distance_objective = np.sqrt(dx ** 2 + dy ** 2)
+
+        else:
+            # L’agent a traversé, ou a déjà traversé : on vise les objetifs
+            agent.has_crossed = True
+            direction_to_door = agent.objective - agent.position
+            distance_objective = np.linalg.norm(direction_to_door)
+
+        # 2) Retourne alpha * distance
+        return distance_objective
+
+    def compute_density_penalty(self, agent):
+        """
+        Calcule la pénalité de densité = somme( 1/(coefficient * distance + 1e-3) )
+        selon side = 2 (verts), side = 1 (bleus) et side=-1 (rouges).
+        """
+        total_density_pen = 0
+        # On scanne les autres agents
+        for other_agent in self.agents:
+            if other_agent is not agent:
+                distance = np.linalg.norm(agent.position - other_agent.position)
+                # Le 1.4 correspond a la capacité à laisser passer les autres agents des verts
+                if distance < 1.3 * (agent.radius + other_agent.radius) and agent.side == 2:
+                    total_density_pen += 1 / (2 + distance + 1e-3)
+
+                # On teste la proximité
+                if distance < 1.1 * (agent.radius + other_agent.radius) and agent.side != 2:
+                    if other_agent.side == agent.side:
+                        total_density_pen += 1 / (35 * distance + 1e-3)
+                    else:
+                        total_density_pen += 1 / (15 * distance + 1e-3)
+
+        # On multiplie par beta
+        return self.beta * total_density_pen
+
+    def compute_zigzag_penalty(self, agent):
+        """
+        Calcule la pénalité de zigzag = gamma_zigzag * (1 - cosθ),
+        où cosθ est l’angle entre velocity et previous_velocity.
+        """
+        zigzag_pen = 0
+        if np.linalg.norm(agent.previous_velocity) > 0 and np.linalg.norm(agent.velocity) > 0:
+            cos_theta = np.dot(agent.velocity, agent.previous_velocity) / (
+                np.linalg.norm(agent.velocity) * np.linalg.norm(agent.previous_velocity)
+            )
+            # Pénalité = (1 - cosθ)
+            zigzag_pen = 1 - cos_theta
+        return self.gamma_zigzag * zigzag_pen

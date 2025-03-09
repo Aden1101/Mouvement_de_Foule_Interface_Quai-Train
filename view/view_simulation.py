@@ -138,7 +138,7 @@ class SimulationView:
             relative_rect=pygame.Rect(
                 (self.col2_x, row3_y), (self.col_width, self.label_height)
             ),
-            text="Nombre d'agents (fixe) :",
+            text="Nombre d'agents train (fixe) :",
             manager=self.manager,
         )
         self.num_agents_input = pygame_gui.elements.UITextEntryLine(
