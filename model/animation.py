@@ -3,6 +3,7 @@ from model.Simulation import TrainStationSimulation
 from matplotlib.animation import FuncAnimation
 import csv
 import os
+import numpy as np
 
 
 def run_simulation(
@@ -17,6 +18,8 @@ def run_simulation(
     Si la simulation dépasse le temps limite, elle s'arrête.
     """
     positions = []
+    density_history = []
+    side_history = []
     blue_cross_time = None  # Temps de descente
     red_cross_time = None  # Temps de montée
     time = 0  # Temps total final
@@ -27,7 +30,12 @@ def run_simulation(
         )  # Réalise les actions nécessaire à chaque dt pour chaque agent
         time += dt
         positions.append([agent.position.copy() for agent in simul.agents])
-        
+        if time == dt:
+            density_history.append(np.zeros(simul.density_grid.shape))
+        else:
+            density_history.append(simul.density_grid.copy())
+
+        side_history.append([agent.side for agent in simul.agents])
 
         if blue_cross_time is None and simul.all_blues_crossed:
             blue_cross_time = step * dt
@@ -50,7 +58,7 @@ def run_simulation(
             )
             break
 
-    return blue_cross_time, red_cross_time, positions
+    return blue_cross_time, red_cross_time, positions, density_history, side_history
 
 
 def save_simulation_to_csv(file_name, results):
@@ -87,29 +95,37 @@ def save_simulation_to_csv(file_name, results):
 
 
 # Visualisation
-def animate_simulation(simulation, positions, interval=100):
-    # Barrière et Limites :
+def animate_simulation(
+    simulation, positions, density_history, side_history, interval=50
+):
     fig, ax = plt.subplots(figsize=(10, 10))
+
+    # On crée l'imshow pour le premier frame
+    # On prend density_history[0] comme grille initiale
+    density_img = ax.imshow(
+        density_history[0],
+        extent=[0, simulation.area_size[0], 0, simulation.area_size[1]],
+        origin="lower",
+        cmap="Reds",
+        alpha=0.4,
+        vmin=0,  # Ajuster selon ta densité
+        vmax=6,
+        interpolation="nearest",
+    )
+
     ax.set_xlim(0, simulation.area_size[0])
     ax.set_ylim(0, simulation.area_size[1])
+    ax.set_aspect("equal", adjustable="box")
 
-    ax.set_aspect('equal', adjustable='box')
-
-
-    # Dessiner les agents initialement
+    # Dessiner les agents (cercles) initialement
     circles = [agent.draw(ax) for agent in simulation.agents]
-
-    def update(frame):
-        for i, circle in enumerate(circles):
-            circle.center = positions[frame][i]
-        return circles
 
     # Ajouter la barrière avec un trou
     ax.plot(
         [simulation.barrier_position, simulation.barrier_position],
         [0, simulation.area_size[1] / 2 - simulation.barrier_width],
         color="black",
-        label="Barrière",
+        label="Porte du Train",
     )
     ax.plot(
         [simulation.barrier_position, simulation.barrier_position],
@@ -122,10 +138,33 @@ def animate_simulation(simulation, positions, interval=100):
 
     plt.legend()
 
+    def update(frame):
+        # -- Mettre à jour la densité --
+        density_img.set_data(density_history[frame])
+        # Optionnel : réajuster l'échelle max si besoin
+        # dens_max = np.max(density_history[frame])
+        # density_img.set_clim(0, dens_max)
+
+        # -- Mettre à jour la position des cercles --
+        for i, circle in enumerate(circles):
+            circle.center = positions[frame][i]
+
+            curr_side = side_history[frame][i]
+            if curr_side == 1:
+                circle.set_color("blue")
+            elif curr_side == -1:
+                circle.set_color("red")
+            elif curr_side == 2:
+                circle.set_color("green")
+            else:
+                circle.set_color("gray")
+
+        return [density_img] + circles
+
     anim = FuncAnimation(
         fig, update, frames=len(positions), interval=interval, blit=True
     )
-    plt.title("Simulation Quai/Train avec Barrière")
+    plt.title("Simulation Quai/Train")
     plt.show()
 
 
@@ -138,7 +177,7 @@ def launch_simulation(
     save_file=None,
     sim_number=1,
     show_animation=True,
-    time_limit=2000,
+    time_limit=1000,
 ):
     if "results" not in shared_data:
         shared_data["results"] = []
@@ -152,8 +191,8 @@ def launch_simulation(
     )  # On crée une instance simulation
 
     # Exécute la simulation
-    blue_time, red_time, positions = run_simulation(
-        simul, shared_data, steps=30000, dt=0.05, time_limit=time_limit
+    blue_time, red_time, positions, density_history, side_history = run_simulation(
+        simul, shared_data, steps=3000, dt=0.05, time_limit=time_limit
     )
     print(
         f"Simulation {sim_number}: Nombre de personnes: {nbr_agent}, Temps de descente: {blue_time:.2f}s, Temps de montée: {red_time:.2f}s"
@@ -180,7 +219,7 @@ def launch_simulation(
     shared_data["results"] = results
 
     if show_animation:
-        animate_simulation(simul, positions)
+        animate_simulation(simul, positions, density_history, side_history)
 
     if not save_file:
         save_file = "simulation_results.csv"
