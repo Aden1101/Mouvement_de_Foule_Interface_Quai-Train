@@ -179,6 +179,53 @@ class CSVAnalysisView:
         except Exception as e:
             print(f"Erreur lors de l'affichage des graphiques : {e}")
 
+            # Graphique pour le temps à 95% des agents en descente (Blue_95_time)
+        if "Blue_95_time" in dataframe.columns:
+            stats_blue_95 = (
+                dataframe.groupby("Nb_agents")["Blue_95_time"]
+                .agg(["mean", "var"])
+                .reset_index()
+            )
+            print(stats_blue_95)
+
+            plt.figure()
+            plt.plot(
+                stats_blue_95["Nb_agents"],
+                stats_blue_95["mean"],
+                marker="o",
+                label="Temps 95% Descente Moyen",
+            )
+            plt.title("Moyenne du Temps à 95% (Descente) par Nombre d'Agents")
+            plt.xlabel("Nombre d'Agents par Équipe")
+            plt.ylabel("Temps 95% Descente Moyen")
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+
+        # Graphique pour le temps à 95% des agents en montée (Red_95_time)
+        if "Red_95_time" in dataframe.columns:
+            stats_red_95 = (
+                dataframe.groupby("Nb_agents")["Red_95_time"]
+                .agg(["mean", "var"])
+                .reset_index()
+            )
+            print(stats_red_95)
+
+            plt.figure()
+            plt.plot(
+                stats_red_95["Nb_agents"],
+                stats_red_95["mean"],
+                marker="o",
+                color="orange",
+                label="Temps 95% Montée Moyen",
+            )
+            plt.title("Moyenne du Temps à 95% (Montée) par Nombre d'Agents")
+            plt.xlabel("Nombre d'Agents par Équipe")
+            plt.ylabel("Temps 95% Montée Moyen")
+            plt.grid(True)
+            plt.legend()
+            plt.show()
+
     @staticmethod
     def clean_data_process(dataframe, file_path):
         try:
