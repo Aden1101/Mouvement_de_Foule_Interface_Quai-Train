@@ -73,7 +73,6 @@ class TrainStationSimulation:
         y_min_factor = 1 / 4  # Étendu (plus bas)
         y_max_factor = 3 / 4  # Étendu (plus haut)
 
-
         for i in range(self.num_agents_per_team):
             # Décision 10% verts statiques, 90% bleus
             is_static = (np.random.rand() < 0.15)
