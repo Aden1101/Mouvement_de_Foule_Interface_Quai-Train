@@ -81,9 +81,9 @@ class TrainStationSimulation:
         y_max_factor = 6 / 7  # Étendu (plus haut)
 
         # for i in range(self.num_agents_per_team):
-        for i in range(20):
+        for i in range(10):
             # Décision 85% verts statiques, 15% bleus
-            is_static = np.random.rand() < 0.1
+            is_static = np.random.rand() < 0.4
 
             # Rayon tiré aléatoirement
             radius = np.random.uniform(0.1, 0.14)
@@ -687,7 +687,14 @@ class TrainStationSimulation:
         r = row_a + direction
         while 0 <= r < ny:
             # on explore toutes les colonnes du train, de gauche à droite
-            for c in range(first_train_col, nx):
+            # Tirage aléatoire pour direction horizontale
+            if np.random.rand() < 0.5:
+                col_range = range(first_train_col, nx)  # gauche ➝ droite
+            else:
+                col_range = range(nx - 1, first_train_col - 1, -1)  # droite ➝ gauche
+
+            for c in col_range:
+
                 # -- bloc (2*block_size+1)² autour de (r, c)
                 rmin = max(0, r - block_size)
                 rmax = min(ny - 1, r + block_size)
